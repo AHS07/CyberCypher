@@ -1,4 +1,4 @@
-"""Consensus Judge Agent - Weighted vote fusion using Gemini-1.5-Pro."""
+"""Consensus Judge Agent - Weighted vote fusion using Llama-3.2 (via Ollama)."""
 import logging
 from datetime import datetime
 from langchain_core.messages import SystemMessage, HumanMessage

@@ -1,0 +1,27 @@
+[
+    {
+        "item": "t-shirt",
+        "price": 25.0,
+        "quantity": 1
+    },
+    {
+        "item": "laptop",
+        "price": 1200.0,
+        "quantity": 1
+    },
+    {
+        "item": "book",
+        "price": 15.50,
+        "quantity": 3
+    },
+    {
+        "item": "gift card",
+        "price": 50.0,
+        "quantity": 1
+    },
+    {
+        "item": "headphones",
+        "price": 199.99,
+        "quantity": 2
+    }
+]

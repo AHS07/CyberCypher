@@ -1,4 +1,4 @@
-"""Skeptic Critic Agent - Identifies false positives and semantic matches using Llama-3.2."""
+"""Skeptic Critic Agent - Identifies false positives and semantic matches using Mistral (via Ollama)."""
 import logging
 from datetime import datetime
 from langchain_core.messages import SystemMessage, HumanMessage

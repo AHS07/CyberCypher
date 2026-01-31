@@ -1,4 +1,12 @@
-"""Centralized LLM provider management with intelligent failover."""
+"""Centralized LLM provider management with intelligent failover.
+
+Ollama-Only Mode:
+- deepseek-r1: Primary analyzer (replaces Claude)
+- mistral: Skeptic critic (replaces Gemini)  
+- llama3.2: Failover model
+
+All models run locally via Ollama with CUDA acceleration.
+"""
 import asyncio
 import time
 from typing import Optional, Callable, Any
@@ -8,9 +16,7 @@ import logging
 
 from supabase import create_client, Client
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from langchain_anthropic import ChatAnthropic
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI  # All Ollama models use OpenAI-compatible API
 
 from app.core.config import settings
 
@@ -23,7 +29,14 @@ class ProviderUnavailableError(Exception):
 
 
 class LLMManager:
-    """Manages LLM providers with health tracking and automatic failover."""
+    """Manages Ollama LLM providers with health tracking and automatic failover."""
+    
+    # Model mapping for Ollama-only mode
+    OLLAMA_MODELS = {
+        "deepseek": "deepseek-r1:latest",      # Primary analyzer (replaces Claude)
+        "mistral": "mistral:latest",            # Skeptic critic (replaces Gemini)
+        "llama": "llama3.2:3b",                 # Failover
+    }
     
     def __init__(self):
         self.supabase: Client = create_client(
@@ -31,40 +44,32 @@ class LLMManager:
             settings.supabase_service_key
         )
         
-        # Provider health tracking
+        # Provider health tracking (all Ollama-based)
         self.provider_health = {
-            "claude": {"is_healthy": True, "consecutive_failures": 0, "last_check": None},
-            "gemini": {"is_healthy": True, "consecutive_failures": 0, "last_check": None},
-            "ollama": {"is_healthy": True, "consecutive_failures": 0, "last_check": None},
+            "deepseek": {"is_healthy": True, "consecutive_failures": 0, "last_check": None},
+            "mistral": {"is_healthy": True, "consecutive_failures": 0, "last_check": None},
+            "llama": {"is_healthy": True, "consecutive_failures": 0, "last_check": None},
         }
         
-        # Provider priority order
-        self.provider_priority = ["claude", "gemini", "ollama"]
+        # Provider priority order for failover
+        self.provider_priority = ["deepseek", "mistral", "llama"]
         
     def get_llm(self, provider: str, model: Optional[str] = None, temperature: float = 0.0):
-        """Get LLM instance for specified provider."""
-        if provider == "claude":
-            return ChatAnthropic(
-                model=model or settings.claude_model,
-                anthropic_api_key=settings.anthropic_api_key,
-                temperature=temperature,
-                max_tokens=4096,
-            )
-        elif provider == "gemini":
-            return ChatGoogleGenerativeAI(
-                model=model or settings.gemini_model,
-                google_api_key=settings.google_api_key,
-                temperature=temperature,
-            )
-        elif provider == "ollama":
-            return ChatOpenAI(
-                base_url=settings.ollama_base_url,
-                model=model or settings.ollama_model,
-                temperature=temperature,
-                api_key="ollama",  # Ollama doesn't require a real API key
-            )
-        else:
-            raise ValueError(f"Unknown provider: {provider}")
+        """Get LLM instance for specified Ollama provider.
+        
+        All providers use Ollama's OpenAI-compatible API.
+        """
+        if provider not in self.OLLAMA_MODELS:
+            raise ValueError(f"Unknown provider: {provider}. Available: {list(self.OLLAMA_MODELS.keys())}")
+        
+        model_name = model or self.OLLAMA_MODELS[provider]
+        
+        return ChatOpenAI(
+            base_url=f"{settings.ollama_base_url}/v1",  # OpenAI-compatible endpoint
+            model=model_name,
+            temperature=temperature,
+            api_key="ollama",  # Ollama doesn't require a real API key
+        )
     
     def mark_failure(self, provider: str, error: Exception):
         """Mark a provider as failed and update health status."""
@@ -112,7 +117,7 @@ class LLMManager:
                     "failover_to": failover_to,
                     "response_time_ms": response_time_ms,
                     "timestamp": datetime.utcnow().isoformat(),
-                }).execute
+                }).execute()
             )
         except Exception as e:
             logger.error(f"Failed to log reliability event: {e}")

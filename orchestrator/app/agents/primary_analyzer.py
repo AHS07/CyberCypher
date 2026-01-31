@@ -1,4 +1,4 @@
-"""Primary Analyzer Agent - Deep-dive JSON diff analysis using Claude-3.5-Sonnet."""
+"""Primary Analyzer Agent - Deep-dive JSON diff analysis using DeepSeek-R1 (via Ollama)."""
 import logging
 from datetime import datetime
 from langchain_core.messages import SystemMessage, HumanMessage

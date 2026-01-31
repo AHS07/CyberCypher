@@ -5,9 +5,14 @@ import { supabase } from "@/lib/supabase";
 import { ShadowTest } from "@/lib/types";
 import { Clock, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
-export function RealTimeFeed() {
+interface RealTimeFeedProps {
+    onSelectTest?: (test: ShadowTest) => void;
+}
+
+export function RealTimeFeed({ onSelectTest }: RealTimeFeedProps) {
     const [tests, setTests] = useState<ShadowTest[]>([]);
     const [isStale, setIsStale] = useState(false);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
 
     useEffect(() => {
         // Fetch initial tests
@@ -119,7 +124,14 @@ export function RealTimeFeed() {
                     tests.map((test) => (
                         <div
                             key={test.test_id}
-                            className="p-3 rounded-md bg-muted/30 border border-border/50 hover:border-primary/50 transition-colors cursor-pointer"
+                            onClick={() => {
+                                setSelectedId(test.test_id);
+                                onSelectTest?.(test);
+                            }}
+                            className={`p-3 rounded-md bg-muted/30 border transition-colors cursor-pointer ${selectedId === test.test_id
+                                    ? "border-primary bg-primary/10"
+                                    : "border-border/50 hover:border-primary/50"
+                                }`}
                         >
                             <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">

@@ -34,7 +34,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-12 gap-6 h-[calc(100vh-220px)]">
         {/* Left Column - Real-Time Feed (3 cols) */}
         <div className="col-span-3 h-full">
-          <RealTimeFeed />
+          <RealTimeFeed onSelectTest={setSelectedTest} />
         </div>
 
         {/* Center Column - Visualizers (6 cols) */}
