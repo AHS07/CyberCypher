@@ -1,7 +1,6 @@
 """Skeptic Critic Agent - Identifies false positives and semantic matches using Mistral (via Ollama)."""
 import logging
 from datetime import datetime
-from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.models.state import ShadowState
 from app.models.schemas import CouncilOpinion
@@ -83,14 +82,12 @@ Apply your skeptical perspective and identify any false positives or acceptable 
     # Call LLM with failover (prioritize local Ollama, then fallback to cloud)
     @with_failover(test_id=state["test_id"])
     async def critique(provider: str) -> str:
-        # Prefer Ollama for skeptic (cost savings)
-        llm = llm_manager.get_llm(provider, temperature=0.2)
         messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=human_prompt)
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": human_prompt}
         ]
-        response = await llm.ainvoke(messages)
-        return response.content
+        response = await llm_manager.call_llm(provider, messages, temperature=0.2)
+        return response
     
     try:
         result = await critique()

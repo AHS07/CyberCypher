@@ -1,7 +1,6 @@
 """Primary Analyzer Agent - Deep-dive JSON diff analysis using DeepSeek-R1 (via Ollama)."""
 import logging
 from datetime import datetime
-from langchain_core.messages import SystemMessage, HumanMessage
 
 from app.models.state import ShadowState
 from app.models.schemas import CouncilOpinion
@@ -96,13 +95,12 @@ Provide your detailed analysis following the JSON structure specified in your sy
     # Call LLM with failover
     @with_failover(test_id=state["test_id"])
     async def analyze(provider: str) -> str:
-        llm = llm_manager.get_llm(provider, temperature=0.0)
         messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=human_prompt)
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": human_prompt}
         ]
-        response = await llm.ainvoke(messages)
-        return response.content
+        response = await llm_manager.call_llm(provider, messages)
+        return response
     
     try:
         result = await analyze()

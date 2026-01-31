@@ -5,7 +5,7 @@ Ollama-Only Mode:
 - mistral: Skeptic critic (replaces Gemini)  
 - llama3.2: Failover model
 
-All models run locally via Ollama with CUDA acceleration.
+All models run locally via Ollama with direct client.
 """
 import asyncio
 import time
@@ -13,10 +13,10 @@ from typing import Optional, Callable, Any
 from functools import wraps
 from datetime import datetime
 import logging
+import json
 
 from supabase import create_client, Client
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from langchain_openai import ChatOpenAI  # All Ollama models use OpenAI-compatible API
+import ollama
 
 from app.core.config import settings
 
@@ -55,21 +55,49 @@ class LLMManager:
         self.provider_priority = ["deepseek", "mistral", "llama"]
         
     def get_llm(self, provider: str, model: Optional[str] = None, temperature: float = 0.0):
-        """Get LLM instance for specified Ollama provider.
+        """Get model name for specified Ollama provider.
         
-        All providers use Ollama's OpenAI-compatible API.
+        Returns the model name to use with direct Ollama client.
         """
         if provider not in self.OLLAMA_MODELS:
             raise ValueError(f"Unknown provider: {provider}. Available: {list(self.OLLAMA_MODELS.keys())}")
         
-        model_name = model or self.OLLAMA_MODELS[provider]
+        return model or self.OLLAMA_MODELS[provider]
+    
+    async def call_llm(self, provider: str, messages: list, temperature: float = 0.0) -> str:
+        """Call Ollama LLM directly with messages.
         
-        return ChatOpenAI(
-            base_url=f"{settings.ollama_base_url}/v1",  # OpenAI-compatible endpoint
-            model=model_name,
-            temperature=temperature,
-            api_key="ollama",  # Ollama doesn't require a real API key
-        )
+        Args:
+            provider: Provider name (deepseek, mistral, llama)
+            messages: List of message dicts with 'role' and 'content'
+            temperature: Temperature for generation
+            
+        Returns:
+            Generated text response
+        """
+        model_name = self.get_llm(provider)
+        
+        # Convert messages to Ollama format
+        prompt = ""
+        for msg in messages:
+            if msg.get("role") == "system":
+                prompt += f"System: {msg['content']}\n\n"
+            elif msg.get("role") == "user" or msg.get("role") == "human":
+                prompt += f"User: {msg['content']}\n\n"
+        
+        prompt += "Assistant: "
+        
+        try:
+            response = await asyncio.to_thread(
+                ollama.generate,
+                model=model_name,
+                prompt=prompt,
+                options={"temperature": temperature}
+            )
+            return response.get("response", "")
+        except Exception as e:
+            logger.error(f"Ollama call failed for {provider}: {e}")
+            raise
     
     def mark_failure(self, provider: str, error: Exception):
         """Mark a provider as failed and update health status."""
@@ -130,99 +158,47 @@ llm_manager = LLMManager()
 
 
 def with_failover(test_id: str):
-    """Decorator that provides automatic failover between LLM providers.
-    
-    Usage:
-        @with_failover(test_id="test-123")
-        async def my_llm_call(provider: str) -> str:
-            llm = llm_manager.get_llm(provider)
-            return await llm.ainvoke("prompt")
-    """
+    """Simplified decorator that provides basic failover between LLM providers."""
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs) -> tuple[Any, str]:
-            """Wrapper that tries multiple providers with exponential backoff."""
-            providers_tried = []
+            """Simplified wrapper with basic failover."""
+            providers_to_try = ["deepseek", "mistral", "llama"]
             last_error = None
             
-            for attempt in range(settings.max_retries):
-                # Get next healthy provider
-                provider = llm_manager.get_next_healthy_provider(exclude=providers_tried)
-                
-                if provider is None:
-                    logger.error("All providers exhausted")
-                    await llm_manager.log_reliability_event(
-                        test_id=test_id,
-                        provider="all",
-                        event_type="failure",
-                        error_message="All providers exhausted"
-                    )
-                    raise ProviderUnavailableError("All LLM providers are unavailable")
-                
-                providers_tried.append(provider)
-                logger.info(f"Attempting {func.__name__} with provider: {provider}")
-                
-                start_time = time.time()
+            for provider in providers_to_try:
                 try:
+                    logger.info(f"Attempting {func.__name__} with provider: {provider}")
+                    
                     # Call the function with the provider
                     result = await func(*args, provider=provider, **kwargs)
                     
                     # Success!
-                    response_time_ms = (time.time() - start_time) * 1000
                     llm_manager.mark_success(provider)
-                    
-                    await llm_manager.log_reliability_event(
-                        test_id=test_id,
-                        provider=provider,
-                        event_type="success",
-                        response_time_ms=response_time_ms
-                    )
+                    logger.info(f"Successfully completed {func.__name__} with {provider}")
                     
                     return result, provider
                     
                 except Exception as e:
-                    response_time_ms = (time.time() - start_time) * 1000
                     last_error = e
-                    
-                    # Determine error type
-                    error_message = str(e)
-                    error_code = None
-                    
-                    if "429" in error_message:
-                        error_code = "RATE_LIMIT"
-                    elif "500" in error_message or "502" in error_message or "503" in error_message:
-                        error_code = "SERVER_ERROR"
-                    elif "timeout" in error_message.lower():
-                        error_code = "TIMEOUT"
-                    else:
-                        error_code = "UNKNOWN"
-                    
+                    logger.warning(f"Provider {provider} failed: {str(e)[:100]}")
                     llm_manager.mark_failure(provider, e)
                     
-                    # Determine next provider for failover logging
-                    next_provider = llm_manager.get_next_healthy_provider(exclude=providers_tried)
-                    
-                    await llm_manager.log_reliability_event(
-                        test_id=test_id,
-                        provider=provider,
-                        event_type="failure" if next_provider is None else "failover",
-                        error_code=error_code,
-                        error_message=error_message[:500],  # Truncate long errors
-                        failover_to=next_provider,
-                        response_time_ms=response_time_ms
-                    )
-                    
-                    logger.warning(
-                        f"Provider {provider} failed with {error_code}: {error_message[:100]}. "
-                        f"Failing over to {next_provider}"
-                    )
-                    
-                    # Exponential backoff before retry
-                    if attempt < settings.max_retries - 1:
-                        await asyncio.sleep(settings.retry_delay_seconds * (2 ** attempt))
+                    # Try next provider
+                    continue
             
-            # If we get here, all retries exhausted
-            raise last_error or ProviderUnavailableError("All providers failed")
+            # If we get here, all providers failed
+            raise last_error or ProviderUnavailableError("All LLM providers failed")
         
         return wrapper
     return decorator
+
+
+async def simple_llm_call(provider: str, system_prompt: str, user_prompt: str) -> str:
+    """Simple LLM call without complex decorators for testing."""
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+    
+    return await llm_manager.call_llm(provider, messages)
