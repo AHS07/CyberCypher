@@ -1,0 +1,17 @@
+{
+  "name": "shadow-twin-guardian",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-agent orchestration system for e-commerce migration parity testing",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:orchestrator\" \"npm run dev:dashboard\"",
+    "dev:orchestrator": "cd orchestrator && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:dashboard": "cd dashboard && npm run dev",
+    "install:all": "cd orchestrator && pip install -r requirements.txt && cd ../dashboard && npm install",
+    "build:dashboard": "cd dashboard && npm run build",
+    "start:dashboard": "cd dashboard && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
