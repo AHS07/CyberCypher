@@ -125,7 +125,7 @@ export function AgentTrace({ test }: Props) {
         }
 
         // Update nodes based on test status
-        const newNodes: Node[] = [...nodes];
+        const newNodes: Node[] = nodes.map(node => ({ ...node, style: { ...node.style } }));
         const opinions = test.council_opinions || [];
 
         // Highlight active nodes

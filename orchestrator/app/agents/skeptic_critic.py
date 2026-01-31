@@ -93,7 +93,8 @@ Apply your skeptical perspective and identify any false positives or acceptable 
         return response.content
     
     try:
-        analysis_text, provider_used = await critique()
+        result = await critique()
+        analysis_text, provider_used = result  # Unpack the tuple returned by with_failover
         
         # Parse response
         import json

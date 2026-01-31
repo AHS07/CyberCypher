@@ -107,18 +107,20 @@ class LLMManager:
     ):
         """Log reliability event to Supabase."""
         try:
-            await asyncio.to_thread(
-                self.supabase.table("reliability_logs").insert({
-                    "test_id": test_id,
-                    "provider": provider,
-                    "event_type": event_type,
-                    "error_code": error_code,
-                    "error_message": error_message,
-                    "failover_to": failover_to,
-                    "response_time_ms": response_time_ms,
-                    "timestamp": datetime.utcnow().isoformat(),
-                }).execute()
-            )
+            # Temporarily disable logging to debug
+            logger.info(f"Reliability event: {provider} {event_type} for {test_id}")
+            # await asyncio.to_thread(
+            #     self.supabase.table("reliability_logs").insert({
+            #         "test_id": test_id,
+            #         "provider": provider,
+            #         "event_type": event_type,
+            #         "error_code": error_code,
+            #         "error_message": error_message,
+            #         "failover_to": failover_to,
+            #         "response_time_ms": response_time_ms,
+            #         "timestamp": datetime.utcnow().isoformat(),
+            #     }).execute()
+            # )
         except Exception as e:
             logger.error(f"Failed to log reliability event: {e}")
 

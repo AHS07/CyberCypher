@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import ollama
+import uuid
 from config import supabase
 from utils import log_to_supabase
 import datetime
@@ -40,9 +41,12 @@ def infer(req: InferRequest):
         
         # Log to reliability logs
         log_to_supabase("reliability_logs", {
-            "timestamp": datetime.datetime.now().isoformat(),
-            "provider": "local_llama",
-            "error_type": "none"
+            "id": str(uuid.uuid4()),
+            "test_id": "local_infer",
+            "provider": "local_llama", 
+            "event_type": "success",
+            "response_time_ms": 0,
+            "timestamp": datetime.datetime.now().isoformat()
         })
         
         return {
@@ -52,9 +56,12 @@ def infer(req: InferRequest):
         }
     except Exception as e:
         log_to_supabase("reliability_logs", {
-            "timestamp": datetime.datetime.now().isoformat(),
+            "id": str(uuid.uuid4()),
+            "test_id": "local_infer",
             "provider": "local_llama",
-            "error_type": str(e)
+            "event_type": "failure", 
+            "error_message": str(e),
+            "timestamp": datetime.datetime.now().isoformat()
         })
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -30,6 +30,9 @@ def trigger_council_analysis(report: dict, merchant_id: str) -> dict | None:
             "diff_report": report["diff_summary"]
         }
         
+        # Debug: Print the request payload
+        print(f"Sending request: {json.dumps(analyze_request, indent=2)}")
+        
         response = requests.post(
             f"{ORCHESTRATOR_URL}/api/analyze",
             json=analyze_request,
@@ -61,34 +64,11 @@ def run_shadow_replay(payload: dict, merchant_id: str = "default_merchant", retr
     legacy_resp, legacy_time, legacy_err = _send_request(LEGACY_URL, payload)
     
     headless_resps = []
-    for _ in range(retries):
+    for attempt in range(retries):
         h_resp, h_time, h_err = _send_request(HEADLESS_URL, payload)
         headless_resps.append((h_resp, h_time, h_err))
         if h_resp and not h_err:
-             break # Don't retry if we got a good response? Or retry if flaky? 
-             # Prompt says "retry up to 3x for flakiness". 
-             # Usually means retry on failure. If success, stop.
-             # "Average 3 replays; if variance high, flag 'unstable'". 
-             # Wait, prompt says "Hit headless endpoint (retry up to 3x for flakiness)". 
-             # AND "Flaky: Average 3 replays; if variance high, flag 'unstable'".
-             # I will implement retries on failure, but for flakiness detection, 
-             # I might need multiple runs. The prompt implies retrying if it fails.
-             # But then "Average 3 replays" implies doing 3 always?
-             # I'll stick to: Try to get one good response. 
-             # But the prompt explicitly says "Average 3 replays". 
-             # I'll do 3 calls if the first one is suspect, OR just do 1 for speed if it works, 
-             # but "Flaky: Average 3 replays" is a specific requirement.
-             # Let's do 1 primarily, and if we want to detect flakiness we can do more.
-             # Given this is a "shadow engine", speed matters. 
-             # I will implement: Call Headless. If fail, retry. 
-             # If success, use it. The "Average 3 replays" might be a specific test mode 
-             # or for the "Flaky Webhook" corner case where we deliberately test for it.
-             # For now, I'll loop `retries` times ONLY if error.
-    
-    # Actually, to properly detect flakiness as per prompt "Flaky: Average 3 replays; if variance high",
-    # I should probably run multiple times if I want to support that feature.
-    # But for standard shadow traffic, 1 vs 1 is standard. 
-    # I will stick to simple retry-on-fail for now, as that's more robust for general use.
+            break  # Success, no need to retry
     
     # Filter out failures from my list if I was doing multiple
     valid_headless = [r for r in headless_resps if r[0] is not None]
@@ -110,12 +90,15 @@ def run_shadow_replay(payload: dict, merchant_id: str = "default_merchant", retr
     if headless_time_avg > legacy_time * 1.5: flags.append("performance_regression")
     
     # Semantic check
-    if "type_changes" in diff:
+    if diff and "type_changes" in diff:
         type_changes = diff["type_changes"]
         keys_to_remove = []
         for path, change in type_changes.items():
-            if check_semantic_equivalence(change.get("old_value"), change.get("new_value")):
-                keys_to_remove.append(path)
+            old_val = change.get("old_value") if isinstance(change, dict) else None
+            new_val = change.get("new_value") if isinstance(change, dict) else None
+            if old_val is not None and new_val is not None:
+                if check_semantic_equivalence(old_val, new_val):
+                    keys_to_remove.append(path)
         
         for k in keys_to_remove:
             del diff["type_changes"][k]
@@ -123,15 +106,21 @@ def run_shadow_replay(payload: dict, merchant_id: str = "default_merchant", retr
         if not diff["type_changes"]:
             del diff["type_changes"]
 
-    # Re-evaluate empty diff after semantic cleanup
-    if not diff:
-        diff = {}
+    # Convert diff to serializable format
+    diff_dict = {}
+    if diff:
+        try:
+            diff_dict = json.loads(diff.to_json())
+        except (TypeError, ValueError):
+            # Fallback: convert to string representation
+            diff_dict = {"raw_diff": str(diff)}
 
     report = {
         "request_id": str(uuid.uuid4()),
+        "merchant_id": merchant_id,  # Add merchant_id to report
         "legacy_response": legacy_resp,
         "headless_response": headless_resp,
-        "diff_summary": json.loads(diff.to_json()) if diff else {},
+        "diff_summary": diff_dict,  # Use the serializable diff_dict
         "flags": flags,
         "legacy_time": legacy_time,
         "headless_time": headless_time_avg,
@@ -148,10 +137,13 @@ def run_shadow_replay(payload: dict, merchant_id: str = "default_merchant", retr
 def _send_request(url, payload):
     try:
         start = time.time()
-        resp = requests.post(url, json=payload, timeout=5)
-        # Check status?
+        resp = requests.post(url, json=payload, timeout=3)  # 3 second timeout
         resp.raise_for_status()
         return resp.json(), time.time() - start, None
+    except requests.exceptions.Timeout:
+        return None, 0, "Request timeout"
+    except requests.exceptions.ConnectionError:
+        return None, 0, "Connection failed"
     except Exception as e:
         return None, 0, str(e)
 

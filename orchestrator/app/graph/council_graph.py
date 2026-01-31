@@ -72,8 +72,9 @@ def create_council_graph() -> StateGraph:
     workflow.add_edge("judge", END)
     
     # Compile with checkpointer
-    checkpointer = SupabaseCheckpointer()
-    compiled_graph = workflow.compile(checkpointer=checkpointer)
+    # checkpointer = SupabaseCheckpointer()
+    # compiled_graph = workflow.compile(checkpointer=checkpointer)
+    compiled_graph = workflow.compile()  # Temporarily disable checkpointer
     
     logger.info("Council graph compiled successfully")
     

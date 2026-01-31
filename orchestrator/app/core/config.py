@@ -11,14 +11,17 @@ class Settings(BaseSettings):
     supabase_anon_key: str
     supabase_service_key: str
     
-    # LLM Provider API Keys
-    anthropic_api_key: str
-    google_api_key: str
+    # LLM Provider API Keys (Optional for Ollama-only mode)
+    anthropic_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
     
     # Ollama Configuration (Local Fallback)
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
+    ollama_primary_model: Optional[str] = None
+    ollama_skeptic_model: Optional[str] = None
+    ollama_failover_model: Optional[str] = None
     
     # LiteLLM Configuration
     litellm_log: str = "INFO"

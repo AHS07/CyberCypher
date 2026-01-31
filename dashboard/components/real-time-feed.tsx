@@ -62,20 +62,23 @@ export function RealTimeFeed({ onSelectTest }: RealTimeFeedProps) {
 
         // Stale signal detector - if no updates in 5 minutes
         const staleTimer = setInterval(() => {
-            const latestUpdate = tests[0]?.updated_at;
-            if (latestUpdate) {
-                const timeSinceUpdate = Date.now() - new Date(latestUpdate).getTime();
-                if (timeSinceUpdate > 5 * 60 * 1000) {
-                    setIsStale(true);
+            setTests((currentTests) => {
+                const latestUpdate = currentTests[0]?.updated_at;
+                if (latestUpdate) {
+                    const timeSinceUpdate = Date.now() - new Date(latestUpdate).getTime();
+                    if (timeSinceUpdate > 5 * 60 * 1000) {
+                        setIsStale(true);
+                    }
                 }
-            }
+                return currentTests;
+            });
         }, 60000);
 
         return () => {
             channel.unsubscribe();
             clearInterval(staleTimer);
         };
-    }, [tests]);
+    }, []); // Remove tests dependency to prevent infinite channel creation
 
     const getStatusIcon = (status: string) => {
         switch (status) {

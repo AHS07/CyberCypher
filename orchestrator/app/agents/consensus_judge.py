@@ -99,7 +99,8 @@ Provide your final consensus verdict following the weighted voting rules in your
         return response.content
     
     try:
-        analysis_text, provider_used = await judge()
+        result = await judge()
+        analysis_text, provider_used = result  # Unpack the tuple returned by with_failover
         
         # Parse response
         import json

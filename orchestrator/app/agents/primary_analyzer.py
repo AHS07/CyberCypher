@@ -105,7 +105,8 @@ Provide your detailed analysis following the JSON structure specified in your sy
         return response.content
     
     try:
-        analysis_text, provider_used = await analyze()
+        result = await analyze()
+        analysis_text, provider_used = result  # Unpack the tuple returned by with_failover
         
         # Parse the response (in production, you'd want more robust JSON parsing)
         import json

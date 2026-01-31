@@ -39,6 +39,9 @@ def log_to_supabase(table, data):
             # Add required status field
             if "status" not in mapped_data:
                 mapped_data["status"] = "pending"
+            # Ensure merchant_id is present
+            if "merchant_id" not in mapped_data:
+                mapped_data["merchant_id"] = "default_merchant"
             # Remove fields not in schema
             for field in ["flags", "legacy_time", "headless_time", "retries_used"]:
                 mapped_data.pop(field, None)

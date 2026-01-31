@@ -24,6 +24,15 @@ class SupabaseCheckpointer(BaseCheckpointSaver):
             settings.supabase_service_key
         )
     
+    async def aput(
+        self,
+        config: RunnableConfig,
+        checkpoint: Checkpoint,
+        metadata: CheckpointMetadata,
+    ) -> RunnableConfig:
+        """Async version of put for LangGraph compatibility."""
+        return self.put(config, checkpoint, metadata)
+    
     def put(
         self,
         config: RunnableConfig,
@@ -66,6 +75,20 @@ class SupabaseCheckpointer(BaseCheckpointSaver):
             logger.error(f"Failed to save checkpoint: {e}")
         
         return config
+    
+    async def aget_tuple(self, config: RunnableConfig) -> Optional[tuple]:
+        """Async version of get_tuple for LangGraph compatibility.
+        
+        Args:
+            config: Runnable configuration with thread_id
+            
+        Returns:
+            Tuple of (checkpoint, metadata) if found, None otherwise
+        """
+        checkpoint = self.get(config)
+        if checkpoint:
+            return (checkpoint, {})
+        return None
     
     def get(self, config: RunnableConfig) -> Optional[Checkpoint]:
         """Retrieve the latest checkpoint for a thread.
