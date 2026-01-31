@@ -1,165 +1,205 @@
-"""Consensus Judge Agent - Weighted vote fusion using Llama-3.2 (via Ollama)."""
+"""Consensus Judge Agent - Makes final weighted decisions based on council input."""
 import logging
-from datetime import datetime
-
-from app.models.state import ShadowState
-from app.models.schemas import CouncilOpinion
-from app.core.llm_manager import llm_manager, with_failover
+from typing import Dict, Any, List
+from app.core.hf_manager import get_hf_manager
 
 logger = logging.getLogger(__name__)
 
-
-SYSTEM_PROMPT = """You are the Consensus Judge in the Shadow Twin Guardian council.
-
-Your role is to SYNTHESIZE opinions from the Primary Analyzer and Skeptic Critic into a FINAL VERDICT.
-
-You will receive:
-1. Primary Analyzer's opinion (pessimistic, thorough)
-2. Skeptic Critic's review (identifies false positives)
-3. Original diff report and API responses
-
-Your responsibilities:
-1. Weigh both opinions:
-   - Primary Analyzer weight: 0.6 (thorough initial analysis)
-   - Skeptic Critic weight: 0.4 (false positive filtering)
-2. Calculate final risk score using weighted average
-3assign final verdict:
-   - PASS: risk_score < 0.3 (no significant issues)
-   - NEEDS_REVIEW: 0.3 <= risk_score < 0.7 (some concerns, human review recommended)
-   - FAIL: risk_score >= 0.7 (critical issues detected)
-4. Provide actionable mitigation recommendations
-5. Justify your decision with clear reasoning
-
-Be balanced and decisive. Your verdict determines whether human intervention is needed.
-
-Return your analysis in the following JSON structure:
-{
-  "analysis": "Your synthesis and reasoning",
-  "final_verdict": "PASS" | "NEEDS_REVIEW" | "FAIL",
-  "final_risk_score": 0.0 to 1.0,
-  "confidence": 0.0 to 1.0,
-  "mitigation_recommendation": "Specific actions to take",
-  "key_issues": ["Critical issues that require attention"]
-}
-"""
-
-
-async def consensus_judge_node(state: ShadowState) -> dict:
-    """Consensus judge node that synthesizes council opinions into final verdict.
+class ConsensusJudge:
+    """Agent that makes final decisions by weighing primary analysis and skeptic critique."""
     
-    Args:
-        state: Current ShadowState from LangGraph
+    def __init__(self):
+        self.hf_manager = get_hf_manager()
+        self.agent_type = "consensus_judge"
+    
+    async def judge(self, test_id: str, merchant_id: str, primary_analysis: Dict[str, Any], 
+                   skeptic_critique: Dict[str, Any], diff_report: Dict[str, Any]) -> Dict[str, Any]:
+        """Make final weighted decision based on council deliberation."""
         
-    Returns:
-        State updates to merge into ShadowState
-    """
-    logger.info(f"Consensus Judge starting for test_id: {state['test_id']}")
-    
-    # Need at least 2 opinions (primary + skeptic)
-    if len(state["council_opinions"]) < 2:
-        logger.warning(f"Insufficient opinions ({len(state['council_opinions'])}), cannot reach consensus")
-        return {
-            "status": "failed",
-            "error_message": "Insufficient council opinions for consensus",
-        }
-    
-    primary_opinion = state["council_opinions"][0]
-    skeptic_opinion = state["council_opinions"][1]
-    
-    # Prepare prompt
-    human_prompt = f"""Synthesize the following council deliberation:
-
-PRIMARY ANALYZER:
-- Risk Score: {primary_opinion['risk_score']}
-- Detected Issues: {primary_opinion['detected_issues']}
-- Analysis: {primary_opinion['analysis']}
-
-SKEPTIC CRITIC:
-- Adjusted Risk Score: {skeptic_opinion['risk_score']}
-- False Positives Identified: {skeptic_opinion.get('false_positives', [])}
-- Genuine Issues: {skeptic_opinion['detected_issues']}
-- Analysis: {skeptic_opinion['analysis']}
-
-CONTEXT:
-Merchant: {state['merchant_id']}
-Test ID: {state['test_id']}
-
-Provide your final consensus verdict following the weighted voting rules in your system prompt."""
-    
-    # Call LLM with failover
-    @with_failover(test_id=state["test_id"])
-    async def judge(provider: str) -> str:
+        # Create judgment prompt
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": human_prompt}
-        ]
-        response = await llm_manager.call_llm(provider, messages, temperature=0.1)
-        return response
-    
-    try:
-        result = await judge()
-        analysis_text, provider_used = result  # Unpack the tuple returned by with_failover
-        
-        # Parse response
-        import json
-        try:
-            analysis_json = json.loads(analysis_text)
-        except json.JSONDecodeError:
-            # Fallback: calculate weighted average ourselves
-            weighted_risk = (
-                primary_opinion['risk_score'] * 0.6 + 
-                skeptic_opinion['risk_score'] * 0.4
-            )
-            
-            if weighted_risk < 0.3:
-                verdict = "PASS"
-            elif weighted_risk < 0.7:
-                verdict = "NEEDS_REVIEW"
-            else:
-                verdict = "FAIL"
-            
-            analysis_json = {
-                "analysis": analysis_text,
-                "final_verdict": verdict,
-                "final_risk_score": weighted_risk,
-                "confidence": 0.6,
-                "mitigation_recommendation": "Review flagged issues manually",
-                "key_issues": skeptic_opinion['detected_issues'],
+            {
+                "role": "system",
+                "content": """You are a Senior Engineering Manager making final deployment decisions for e-commerce API migrations.
+
+You have two expert opinions:
+1. PRIMARY ANALYST: Technical expert who identifies potential issues
+2. SKEPTIC CRITIC: Experienced reviewer who challenges findings and spots false positives
+
+Your job is to weigh both perspectives and make a final decision:
+- PASS: Safe to deploy (risk < 0.3)
+- NEEDS_REVIEW: Requires human oversight (risk 0.3-0.7)  
+- FAIL: Do not deploy (risk > 0.7)
+
+Consider:
+- Business impact vs technical risk
+- False positive likelihood
+- Merchant experience impact
+- Rollback complexity
+
+Respond in JSON format:
+{
+    "final_analysis": "your weighted decision reasoning",
+    "verdict": "PASS|NEEDS_REVIEW|FAIL",
+    "final_risk_score": 0.0-1.0,
+    "confidence": 0.0-1.0,
+    "recommendation": "specific action to take",
+    "key_factors": ["main decision factors"]
+}"""
+            },
+            {
+                "role": "user",
+                "content": f"""Make final deployment decision for:
+
+Test ID: {test_id}
+Merchant: {merchant_id}
+
+PRIMARY ANALYST SAYS:
+- Risk Score: {primary_analysis.get('risk_score', 0)}
+- Issues: {primary_analysis.get('detected_issues', [])}
+- Analysis: {primary_analysis.get('analysis', '')}
+
+SKEPTIC CRITIC SAYS:
+- Risk Adjustment: {skeptic_critique.get('risk_adjustment', 0)}
+- False Positives: {skeptic_critique.get('false_positives', [])}
+- Genuine Concerns: {skeptic_critique.get('genuine_concerns', [])}
+- Critique: {skeptic_critique.get('critique', '')}
+
+Raw Differences: {diff_report}
+
+What's your final verdict? Should we deploy this headless API version?"""
             }
+        ]
         
-        opinion = CouncilOpinion(
-            agent="consensus_judge",
-            provider=provider_used,
-            timestamp=datetime.utcnow(),
-            analysis=analysis_json.get("analysis", analysis_text),
-            detected_issues=analysis_json.get("key_issues", []),
-            false_positives=[],
-            risk_score=analysis_json.get("final_risk_score", 0.5),
-            confidence=analysis_json.get("confidence", 0.8),
+        # Get healthy model for this agent
+        model_name = await self.hf_manager.get_healthy_model(self.agent_type)
+        if not model_name:
+            logger.error("No healthy models available for consensus judge")
+            return self._fallback_judgment(primary_analysis, skeptic_critique)
+        
+        # Call the model
+        result = await self.hf_manager.call_model(
+            model_name=model_name,
+            messages=messages,
+            max_tokens=512,
+            temperature=0.2  # Low temperature for consistent decisions
         )
         
-        final_verdict = analysis_json.get("final_verdict", "NEEDS_REVIEW")
-        mitigation_rec = analysis_json.get("mitigation_recommendation", "No recommendation provided")
+        if not result:
+            logger.warning("Consensus judge model call failed, using fallback")
+            return self._fallback_judgment(primary_analysis, skeptic_critique)
         
-        logger.info(
-            f"Consensus Judge reached verdict: {final_verdict} "
-            f"(risk: {opinion.risk_score:.2f})"
-        )
+        # Parse the response
+        try:
+            response_text = result["content"]
+            
+            # Try to extract JSON
+            import json
+            import re
+            
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if json_match:
+                judgment_data = json.loads(json_match.group())
+            else:
+                judgment_data = self._parse_text_judgment(response_text, primary_analysis, skeptic_critique)
+            
+            # Validate verdict
+            verdict = judgment_data.get("verdict", "NEEDS_REVIEW")
+            if verdict not in ["PASS", "NEEDS_REVIEW", "FAIL"]:
+                verdict = "NEEDS_REVIEW"
+            
+            return {
+                "agent": "consensus_judge",
+                "model": model_name,
+                "timestamp": result["timestamp"],
+                "final_analysis": judgment_data.get("final_analysis", response_text),
+                "verdict": verdict,
+                "final_risk_score": float(judgment_data.get("final_risk_score", 0.5)),
+                "confidence": float(judgment_data.get("confidence", 0.8)),
+                "recommendation": judgment_data.get("recommendation", "Proceed with caution"),
+                "key_factors": judgment_data.get("key_factors", []),
+                "raw_response": response_text
+            }
+            
+        except Exception as e:
+            logger.error(f"Error parsing consensus judge response: {e}")
+            return self._fallback_judgment(primary_analysis, skeptic_critique, result.get("content", ""))
+    
+    def _fallback_judgment(self, primary_analysis: Dict[str, Any], skeptic_critique: Dict[str, Any], 
+                          raw_response: str = "") -> Dict[str, Any]:
+        """Fallback judgment when LLM fails."""
+        
+        # Calculate weighted risk score
+        primary_risk = primary_analysis.get("risk_score", 0.5)
+        risk_adjustment = skeptic_critique.get("risk_adjustment", 0.0)
+        
+        # Weight: Primary 60%, Skeptic adjustment 40%
+        final_risk = max(0.0, min(1.0, primary_risk + (risk_adjustment * 0.4)))
+        
+        # Determine verdict based on risk thresholds
+        if final_risk < 0.3:
+            verdict = "PASS"
+            recommendation = "Safe to deploy - low risk detected"
+        elif final_risk < 0.7:
+            verdict = "NEEDS_REVIEW"
+            recommendation = "Manual review recommended - moderate risk"
+        else:
+            verdict = "FAIL"
+            recommendation = "Do not deploy - high risk detected"
+        
+        # Key factors
+        key_factors = []
+        if primary_analysis.get("detected_issues"):
+            key_factors.append(f"Primary found {len(primary_analysis['detected_issues'])} issues")
+        if skeptic_critique.get("false_positives"):
+            key_factors.append(f"Skeptic identified {len(skeptic_critique['false_positives'])} false positives")
+        if skeptic_critique.get("genuine_concerns"):
+            key_factors.append(f"Skeptic confirmed {len(skeptic_critique['genuine_concerns'])} genuine concerns")
         
         return {
-            "council_opinions": [opinion.model_dump()],
-            "active_provider": provider_used,
-            "providers_attempted": [provider_used],
-            "final_verdict": final_verdict,
-            "risk_score": opinion.risk_score,
-            "mitigation_recommendation": mitigation_rec,
-            "status": "complete",
-            "is_mitigated": False,  # Requires human action if NEEDS_REVIEW or FAIL
+            "agent": "consensus_judge",
+            "model": "fallback_weighted",
+            "timestamp": "fallback",
+            "final_analysis": f"Weighted analysis: Primary risk {primary_risk:.2f}, Skeptic adjustment {risk_adjustment:.2f}, Final risk {final_risk:.2f}. " + (raw_response[:200] if raw_response else ""),
+            "verdict": verdict,
+            "final_risk_score": final_risk,
+            "confidence": 0.75,
+            "recommendation": recommendation,
+            "key_factors": key_factors,
+            "raw_response": raw_response
         }
+    
+    def _parse_text_judgment(self, text: str, primary_analysis: Dict[str, Any], 
+                           skeptic_critique: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse non-JSON text response."""
         
-    except Exception as e:
-        logger.error(f"Consensus Judge failed: {e}")
+        text_lower = text.lower()
+        
+        # Determine verdict from text
+        if "pass" in text_lower and ("safe" in text_lower or "deploy" in text_lower):
+            verdict = "PASS"
+            risk_score = 0.2
+        elif "fail" in text_lower or "do not deploy" in text_lower or "block" in text_lower:
+            verdict = "FAIL"
+            risk_score = 0.8
+        else:
+            verdict = "NEEDS_REVIEW"
+            risk_score = 0.5
+        
+        # Extract key factors
+        key_factors = []
+        if "false positive" in text_lower:
+            key_factors.append("False positives identified")
+        if "genuine concern" in text_lower:
+            key_factors.append("Genuine concerns remain")
+        if "business impact" in text_lower:
+            key_factors.append("Business impact considered")
+        
         return {
-            "status": "failed",
-            "error_message": f"Consensus Judge failed: {str(e)}",
+            "final_analysis": text[:300],
+            "verdict": verdict,
+            "final_risk_score": risk_score,
+            "confidence": 0.6,
+            "recommendation": f"Based on text analysis: {verdict}",
+            "key_factors": key_factors
         }

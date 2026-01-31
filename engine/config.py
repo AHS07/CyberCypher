@@ -34,9 +34,9 @@ ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL", "http://localhost:8003")
 LEGACY_URL = "http://localhost:8001/checkout"
 HEADLESS_URL = "http://localhost:8002/checkout"
 BUGS_ENABLED = {
-    "type_change": False,
-    "missing_key": False,
-    "case_mismatch": False,
+    "type_change": True,
+    "missing_key": True,
+    "case_mismatch": True,
     "performance_delay": False,
     "flaky": False
 }

@@ -1,9 +1,10 @@
 import requests
 import json
+import time
 
 # Test data
 test_data = {
-    "test_id": "test123",
+    "test_id": f"test_{int(time.time())}",  # Use timestamp for unique ID
     "merchant_id": "test_merchant",
     "legacy_response": {"status": "SUCCESS", "price": 100.0},
     "headless_response": {"status": "success", "price": "100"},

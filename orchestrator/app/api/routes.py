@@ -40,9 +40,9 @@ async def process_analysis(request: AnalyzeRequest):
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("test_id", request.test_id).execute()
         
-        # Run council analysis using mock council (fallback when Ollama unavailable)
-        from app.mock_council import mock_council
-        final_state = await mock_council.analyze_diff(
+        # Run real council analysis using Hugging Face models
+        from app.graph.council_graph import run_council_analysis
+        final_state = await run_council_analysis(
             test_id=request.test_id,
             merchant_id=request.merchant_id,
             diff_report=request.diff_report,

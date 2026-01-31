@@ -1,141 +1,178 @@
-"""LangGraph StateGraph definition for the Shadow Twin Guardian council."""
+"""LangGraph workflow for multi-agent council deliberation."""
 import logging
-from typing import Literal
+from typing import Dict, Any, TypedDict
+from datetime import datetime
 
-from langgraph.graph import StateGraph, END
-from langchain_core.runnables import RunnableConfig
-
-from app.models.state import ShadowState
-from app.agents.primary_analyzer import primary_analyzer_node
-from app.agents.skeptic_critic import skeptic_critic_node
-from app.agents.consensus_judge import consensus_judge_node
-from app.db.checkpointer import SupabaseCheckpointer
+from app.agents.primary_analyzer import PrimaryAnalyzer
+from app.agents.skeptic_critic import SkepticCritic
+from app.agents.consensus_judge import ConsensusJudge
 
 logger = logging.getLogger(__name__)
 
-
-def should_continue(state: ShadowState) -> Literal["skeptic", "end"]:
-    """Conditional edge to determine if we should continue to skeptic or end early.
+class CouncilState(TypedDict):
+    """State object for the council workflow."""
+    test_id: str
+    merchant_id: str
+    diff_report: Dict[str, Any]
+    legacy_response: Dict[str, Any]
+    headless_response: Dict[str, Any]
     
-    Args:
-        state: Current state
+    # Agent outputs
+    primary_analysis: Dict[str, Any]
+    skeptic_critique: Dict[str, Any]
+    final_judgment: Dict[str, Any]
+    
+    # Workflow state
+    status: str
+    error_message: str
+    council_opinions: list
+
+class CouncilWorkflow:
+    """Orchestrates the multi-agent council deliberation."""
+    
+    def __init__(self):
+        self.primary_analyzer = PrimaryAnalyzer()
+        self.skeptic_critic = SkepticCritic()
+        self.consensus_judge = ConsensusJudge()
+    
+    async def run_council_analysis(self, test_id: str, merchant_id: str, 
+                                  diff_report: Dict[str, Any], legacy_response: Dict[str, Any], 
+                                  headless_response: Dict[str, Any]) -> Dict[str, Any]:
+        """Run the complete council analysis workflow."""
         
-    Returns:
-        Next node name or "end"
-    """
-    # If empty diff was detected, primary analyzer set status to "complete"
-    if state.get("status") == "complete":
-        logger.info("Empty diff detected, skipping remaining council")
-        return "end"
+        logger.info(f"Starting council analysis for test {test_id}")
+        
+        # Initialize state
+        state = CouncilState(
+            test_id=test_id,
+            merchant_id=merchant_id,
+            diff_report=diff_report,
+            legacy_response=legacy_response,
+            headless_response=headless_response,
+            primary_analysis={},
+            skeptic_critique={},
+            final_judgment={},
+            status="analyzing",
+            error_message="",
+            council_opinions=[]
+        )
+        
+        try:
+            # Step 1: Primary Analysis
+            logger.info(f"Running primary analysis for {test_id}")
+            state["primary_analysis"] = await self.primary_analyzer.analyze(
+                test_id, merchant_id, diff_report, legacy_response, headless_response
+            )
+            state["council_opinions"].append(state["primary_analysis"])
+            
+            # Step 2: Skeptic Critique
+            logger.info(f"Running skeptic critique for {test_id}")
+            state["skeptic_critique"] = await self.skeptic_critic.critique(
+                test_id, state["primary_analysis"], diff_report, legacy_response, headless_response
+            )
+            state["council_opinions"].append(state["skeptic_critique"])
+            
+            # Step 3: Consensus Judgment
+            logger.info(f"Running consensus judgment for {test_id}")
+            state["final_judgment"] = await self.consensus_judge.judge(
+                test_id, merchant_id, state["primary_analysis"], state["skeptic_critique"], diff_report
+            )
+            state["council_opinions"].append(state["final_judgment"])
+            
+            # Finalize state
+            state["status"] = "complete"
+            
+            logger.info(f"Council analysis completed for {test_id}")
+            
+            return self._format_final_result(state)
+            
+        except Exception as e:
+            logger.error(f"Council analysis failed for {test_id}: {e}")
+            state["status"] = "failed"
+            state["error_message"] = str(e)
+            
+            return self._format_error_result(state)
     
-    # If primary analyzer failed, end
-    if state.get("status") == "failed":
-        logger.error("Primary analyzer failed, ending graph")
-        return "end"
-    
-    # Continue to skeptic
-    return "skeptic"
-
-
-def create_council_graph() -> StateGraph:
-    """Create the LangGraph StateGraph for council deliberation.
-    
-    Returns:
-        Compiled StateGraph ready for execution
-    """
-    # Initialize graph with ShadowState
-    workflow = StateGraph(ShadowState)
-    
-    # Add nodes
-    workflow.add_node("primary", primary_analyzer_node)
-    workflow.add_node("skeptic", skeptic_critic_node)
-    workflow.add_node("judge", consensus_judge_node)
-    
-    # Set entry point
-    workflow.set_entry_point("primary")
-    
-    # Add edges
-    # Primary -> conditional (either skeptic or end)
-    workflow.add_conditional_edges(
-        "primary",
-        should_continue,
-        {
-            "skeptic": "skeptic",
-            "end": END,
+    def _format_final_result(self, state: CouncilState) -> Dict[str, Any]:
+        """Format the final council result."""
+        
+        final_judgment = state["final_judgment"]
+        
+        return {
+            "test_id": state["test_id"],
+            "merchant_id": state["merchant_id"],
+            "status": "complete",
+            "council_opinions": state["council_opinions"],
+            "final_verdict": final_judgment.get("verdict", "NEEDS_REVIEW"),
+            "risk_score": final_judgment.get("final_risk_score", 0.5),
+            "is_mitigated": False,
+            "mitigation_recommendation": final_judgment.get("recommendation", "Manual review required"),
+            "active_provider": "huggingface_council",
+            "providers_attempted": self._get_providers_attempted(state),
+            "analysis_summary": self._create_analysis_summary(state),
+            "timestamp": datetime.utcnow().isoformat()
         }
+    
+    def _format_error_result(self, state: CouncilState) -> Dict[str, Any]:
+        """Format error result when council fails."""
+        
+        return {
+            "test_id": state["test_id"],
+            "merchant_id": state["merchant_id"],
+            "status": "failed",
+            "error_message": state["error_message"],
+            "council_opinions": state["council_opinions"],  # Partial results
+            "is_mitigated": False,
+            "active_provider": "huggingface_council",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    def _get_providers_attempted(self, state: CouncilState) -> list:
+        """Get list of providers attempted during analysis."""
+        providers = []
+        
+        if state["primary_analysis"].get("model"):
+            providers.append(state["primary_analysis"]["model"])
+        if state["skeptic_critique"].get("model"):
+            providers.append(state["skeptic_critique"]["model"])
+        if state["final_judgment"].get("model"):
+            providers.append(state["final_judgment"]["model"])
+        
+        return list(set(providers))  # Remove duplicates
+    
+    def _create_analysis_summary(self, state: CouncilState) -> str:
+        """Create a human-readable summary of the analysis."""
+        
+        primary = state["primary_analysis"]
+        skeptic = state["skeptic_critique"]
+        judge = state["final_judgment"]
+        
+        summary_parts = []
+        
+        # Primary findings
+        if primary.get("detected_issues"):
+            summary_parts.append(f"Primary Analyzer detected {len(primary['detected_issues'])} issues")
+        
+        # Skeptic findings
+        if skeptic.get("false_positives"):
+            summary_parts.append(f"Skeptic identified {len(skeptic['false_positives'])} false positives")
+        if skeptic.get("genuine_concerns"):
+            summary_parts.append(f"Skeptic confirmed {len(skeptic['genuine_concerns'])} genuine concerns")
+        
+        # Final decision
+        verdict = judge.get("verdict", "UNKNOWN")
+        risk_score = judge.get("final_risk_score", 0)
+        summary_parts.append(f"Final verdict: {verdict} (risk: {risk_score:.2f})")
+        
+        return ". ".join(summary_parts) + "."
+
+
+# Global workflow instance
+council_workflow = CouncilWorkflow()
+
+async def run_council_analysis(test_id: str, merchant_id: str, diff_report: Dict[str, Any], 
+                              legacy_response: Dict[str, Any], headless_response: Dict[str, Any]) -> Dict[str, Any]:
+    """Run council analysis - main entry point."""
+    return await council_workflow.run_council_analysis(
+        test_id, merchant_id, diff_report, legacy_response, headless_response
     )
-    
-    # Skeptic -> Judge
-    workflow.add_edge("skeptic", "judge")
-    
-    # Judge -> END
-    workflow.add_edge("judge", END)
-    
-    # Compile with checkpointer
-    # checkpointer = SupabaseCheckpointer()
-    # compiled_graph = workflow.compile(checkpointer=checkpointer)
-    compiled_graph = workflow.compile()  # Temporarily disable checkpointer
-    
-    logger.info("Council graph compiled successfully")
-    
-    return compiled_graph
-
-
-# Global graph instance
-council_graph = create_council_graph()
-
-
-async def run_council_analysis(
-    test_id: str,
-    merchant_id: str,
-    legacy_response: dict,
-    headless_response: dict,
-    diff_report: dict,
-) -> ShadowState:
-    """Execute the council graph for a test.
-    
-    Args:
-        test_id: Unique test identifier
-        merchant_id: Merchant identifier
-        legacy_response: Legacy API response
-        headless_response: Headless API response
-        diff_report: DeepDiff report
-        
-    Returns:
-        Final ShadowState after council deliberation
-    """
-    logger.info(f"Starting council analysis for test {test_id}")
-    
-    # Initialize state
-    initial_state: ShadowState = {
-        "test_id": test_id,
-        "merchant_id": merchant_id,
-        "diff_report": diff_report,
-        "legacy_response": legacy_response,
-        "headless_response": headless_response,
-        "council_opinions": [],
-        "active_provider": "",
-        "providers_attempted": [],
-        "is_mitigated": False,
-        "risk_score": 0.0,
-        "final_verdict": "",
-        "mitigation_recommendation": "",
-        "status": "pending",
-        "error_message": None,
-    }
-    
-    # Run graph with thread_id for checkpointing
-    config = RunnableConfig(
-        configurable={"thread_id": test_id}
-    )
-    
-    try:
-        # Invoke graph
-        final_state = await council_graph.ainvoke(initial_state, config)
-        
-        logger.info(f"Council analysis completed for test {test_id}")
-        return final_state
-        
-    except Exception as e:
-        logger.error(f"Council analysis failed for test {test_id}: {e}")
-        raise

@@ -1,147 +1,164 @@
-"""Primary Analyzer Agent - Deep-dive JSON diff analysis using DeepSeek-R1 (via Ollama)."""
+"""Primary Analyzer Agent - Technical analysis of API differences."""
 import logging
-from datetime import datetime
-
-from app.models.state import ShadowState
-from app.models.schemas import CouncilOpinion
-from app.core.llm_manager import llm_manager, with_failover
+from typing import Dict, Any
+from app.core.hf_manager import get_hf_manager
 
 logger = logging.getLogger(__name__)
 
-
-SYSTEM_PROMPT = """You are the Primary Analyzer in the Shadow Twin Guardian council.
-
-Your role is to perform the FIRST deep-dive analysis of JSON diff reports from e-commerce migration parity testing.
-
-You will receive:
-1. A DeepDiff report showing differences between Legacy and Headless API responses
-2. The full Legacy API response (original system)
-3. The full Headless API response (new system)
-
-Your responsibilities:
-1. Identify ALL significant differences that could impact business logic
-2. Categorize differences by severity (Critical, High, Medium, Low)
-3. Determine if differences are:
-   - Breaking changes (data loss, incorrect values)
-   - Acceptable transformations (format changes, null vs empty)
-   - Potential bugs in the new system
-4. Provide a preliminary risk score (0.0 to 1.0)
-5. List specific issues that need investigation
-
-Be thorough and pessimistic - it's better to flag potential issues for the Skeptic to review.
-
-Return your analysis in the following JSON structure:
-{
-  "analysis": "Detailed analysis text",
-  "detected_issues": ["issue1", "issue2", ...],
-  "risk_score": 0.0 to 1.0,
-  "confidence": 0.0 to 1.0,
-  "severity_breakdown": {
-    "critical": ["issue"],
-    "high": [],
-    "medium": [],
-    "low": []
-  }
-}
-"""
-
-
-async def primary_analyzer_node(state: ShadowState) -> dict:
-    """Primary analysis node that performs initial deep-dive into diff report.
+class PrimaryAnalyzer:
+    """Agent responsible for technical analysis of API parity differences."""
     
-    Args:
-        state: Current ShadowState from LangGraph
+    def __init__(self):
+        self.hf_manager = get_hf_manager()
+        self.agent_type = "primary_analyzer"
+    
+    async def analyze(self, test_id: str, merchant_id: str, diff_report: Dict[str, Any], 
+                     legacy_response: Dict[str, Any], headless_response: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform technical analysis of the API differences."""
         
-    Returns:
-        State updates to merge into ShadowState
-    """
-    logger.info(f"Primary Analyzer starting for test_id: {state['test_id']}")
-    
-    # Check if diff is empty
-    if not state["diff_report"] or len(state["diff_report"]) == 0:
-        logger.info("Empty diff detected, skipping analysis")
-        return {
-            "council_opinions": [{
-                "agent": "primary_analyzer",
-                "provider": "skip",
-                "timestamp": datetime.utcnow(),
-                "analysis": "No differences detected between legacy and headless responses. Test PASSED.",
-                "detected_issues": [],
-                "false_positives": [],
-                "risk_score": 0.0,
-                "confidence": 1.0,
-            }],
-            "status": "complete",
-            "final_verdict": "PASS",
-            "risk_score": 0.0,
-        }
-    
-    # Prepare prompt
-    human_prompt = f"""Analyze the following parity test:
-
-MERCHANT ID: {state['merchant_id']}
-
-DIFF REPORT:
-{state['diff_report']}
-
-LEGACY RESPONSE:
-{state['legacy_response']}
-
-HEADLESS RESPONSE:
-{state['headless_response']}
-
-Provide your detailed analysis following the JSON structure specified in your system prompt."""
-    
-    # Call LLM with failover
-    @with_failover(test_id=state["test_id"])
-    async def analyze(provider: str) -> str:
+        # Create analysis prompt
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": human_prompt}
-        ]
-        response = await llm_manager.call_llm(provider, messages)
-        return response
-    
-    try:
-        result = await analyze()
-        analysis_text, provider_used = result  # Unpack the tuple returned by with_failover
-        
-        # Parse the response (in production, you'd want more robust JSON parsing)
-        import json
-        try:
-            analysis_json = json.loads(analysis_text)
-        except json.JSONDecodeError:
-            # Fallback if LLM doesn't return valid JSON
-            analysis_json = {
-                "analysis": analysis_text,
-                "detected_issues": ["Failed to parse structured response"],
-                "risk_score": 0.5,
-                "confidence": 0.5,
+            {
+                "role": "system",
+                "content": """You are a Senior API Engineer analyzing e-commerce migration parity issues. 
+Your job is to identify technical problems that could break the frontend or cause business logic failures.
+
+Focus on:
+- Type mismatches that break parsing (float vs string)
+- Missing required fields that cause null pointer exceptions  
+- Schema changes that break client contracts
+- Performance regressions that affect user experience
+
+Respond in JSON format:
+{
+    "analysis": "detailed technical explanation",
+    "detected_issues": ["list of specific issues"],
+    "risk_score": 0.0-1.0,
+    "confidence": 0.0-1.0,
+    "business_impact": "explanation of business consequences"
+}"""
+            },
+            {
+                "role": "user", 
+                "content": f"""Analyze this API parity test:
+
+Test ID: {test_id}
+Merchant: {merchant_id}
+
+Legacy Response: {legacy_response}
+Headless Response: {headless_response}
+
+Detected Differences: {diff_report}
+
+What technical issues do you see? What's the risk to the e-commerce platform?"""
             }
+        ]
         
-        opinion = CouncilOpinion(
-            agent="primary_analyzer",
-            provider=provider_used,
-            timestamp=datetime.utcnow(),
-            analysis=analysis_json.get("analysis", analysis_text),
-            detected_issues=analysis_json.get("detected_issues", []),
-            false_positives=[],  # Primary analyzer doesn't identify false positives
-            risk_score=analysis_json.get("risk_score", 0.5),
-            confidence=analysis_json.get("confidence", 0.8),
+        # Get healthy model for this agent
+        model_name = await self.hf_manager.get_healthy_model(self.agent_type)
+        if not model_name:
+            logger.error("No healthy models available for primary analyzer")
+            return self._fallback_analysis(diff_report)
+        
+        # Call the model
+        result = await self.hf_manager.call_model(
+            model_name=model_name,
+            messages=messages,
+            max_tokens=512,
+            temperature=0.3  # Lower temperature for more focused analysis
         )
         
-        logger.info(f"Primary Analyzer completed with risk score: {opinion.risk_score}")
+        if not result:
+            logger.warning("Primary analyzer model call failed, using fallback")
+            return self._fallback_analysis(diff_report)
+        
+        # Parse the response
+        try:
+            # Try to extract JSON from the response
+            response_text = result["content"]
+            
+            # Look for JSON in the response
+            import json
+            import re
+            
+            # Try to find JSON block
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if json_match:
+                analysis_data = json.loads(json_match.group())
+            else:
+                # Fallback parsing
+                analysis_data = self._parse_text_response(response_text, diff_report)
+            
+            return {
+                "agent": "primary_analyzer",
+                "model": model_name,
+                "timestamp": result["timestamp"],
+                "analysis": analysis_data.get("analysis", response_text),
+                "detected_issues": analysis_data.get("detected_issues", []),
+                "risk_score": float(analysis_data.get("risk_score", 0.5)),
+                "confidence": float(analysis_data.get("confidence", 0.8)),
+                "business_impact": analysis_data.get("business_impact", "Unknown impact"),
+                "raw_response": response_text
+            }
+            
+        except Exception as e:
+            logger.error(f"Error parsing primary analyzer response: {e}")
+            return self._fallback_analysis(diff_report, result.get("content", ""))
+    
+    def _fallback_analysis(self, diff_report: Dict[str, Any], raw_response: str = "") -> Dict[str, Any]:
+        """Fallback analysis when LLM fails."""
+        issues = []
+        risk_score = 0.0
+        
+        if "type_changes" in diff_report:
+            issues.append("Type mismatch detected - may break client parsing")
+            risk_score += 0.4
+        
+        if "dictionary_item_removed" in diff_report:
+            issues.append("Missing fields in headless response - potential null pointer exceptions")
+            risk_score += 0.5
+            
+        if "values_changed" in diff_report:
+            issues.append("Value differences found - may affect business logic")
+            risk_score += 0.2
         
         return {
-            "council_opinions": [opinion.model_dump()],
-            "active_provider": provider_used,
-            "providers_attempted": [provider_used],
-            "status": "analyzing",
+            "agent": "primary_analyzer",
+            "model": "fallback_rules",
+            "timestamp": "fallback",
+            "analysis": f"Fallback analysis detected {len(issues)} issues. " + (raw_response[:200] if raw_response else ""),
+            "detected_issues": issues,
+            "risk_score": min(risk_score, 1.0),
+            "confidence": 0.6,
+            "business_impact": "Potential frontend breakage and user experience issues",
+            "raw_response": raw_response
         }
+    
+    def _parse_text_response(self, text: str, diff_report: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse non-JSON text response."""
+        # Simple text parsing fallback
+        issues = []
+        risk_score = 0.3  # Default moderate risk
         
-    except Exception as e:
-        logger.error(f"Primary Analyzer failed: {e}")
+        text_lower = text.lower()
+        
+        if "type" in text_lower and ("mismatch" in text_lower or "change" in text_lower):
+            issues.append("Type mismatch identified by analyzer")
+            risk_score += 0.3
+        
+        if "missing" in text_lower or "removed" in text_lower:
+            issues.append("Missing field identified by analyzer")
+            risk_score += 0.4
+        
+        if "critical" in text_lower or "high risk" in text_lower:
+            risk_score += 0.3
+        elif "low risk" in text_lower or "minor" in text_lower:
+            risk_score = max(risk_score - 0.2, 0.1)
+        
         return {
-            "status": "failed",
-            "error_message": f"Primary Analyzer failed: {str(e)}",
+            "analysis": text[:300],  # First 300 chars
+            "detected_issues": issues,
+            "risk_score": min(risk_score, 1.0),
+            "confidence": 0.7,
+            "business_impact": "Analysis suggests potential impact on e-commerce operations"
         }
