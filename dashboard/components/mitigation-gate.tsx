@@ -1,120 +1,163 @@
 "use client";
 
-import { useState } from "react";
-import { ShieldCheck, AlertTriangle } from "lucide-react";
+import { motion } from "framer-motion";
 import { ShadowTest } from "@/lib/types";
 
 interface Props {
-    test?: ShadowTest;
-    onMitigate?: () => void;
+  test?: ShadowTest;
 }
 
-export function MitigationGate({ test, onMitigate }: Props) {
-    const [loading, setLoading] = useState(false);
-
-    // Button is active when:
-    // 1. Consensus Judge has completed (3 opinions)
-    // 2. Risk score is high (>= 0.7) or verdict is FAIL/NEEDS_REVIEW
-    // 3. Not already mitigated
-    const isActive =
-        test &&
-        test.council_opinions?.length === 3 &&
-        ((test.risk_score && test.risk_score >= 0.7) ||
-            test.final_verdict === "FAIL" ||
-            test.final_verdict === "NEEDS_REVIEW") &&
-        !test.is_mitigated;
-
-    const handleMitigate = async () => {
-        if (!test || !isActive) return;
-
-        setLoading(true);
-        try {
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/mitigate/${test.test_id}`,
-                {
-                    method: "POST",
-                }
-            );
-
-            if (response.ok) {
-                onMitigate?.();
-            }
-        } catch (error) {
-            console.error("Failed to mitigate:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    if (!test) {
-        return (
-            <div className="p-4 bg-muted/20 rounded-lg border border-border text-center text-muted-foreground text-sm">
-                Select a test to see mitigation options
-            </div>
-        );
-    }
-
+export function MitigationGate({ test }: Props) {
+  if (!test) {
     return (
-        <div className="p-4 bg-card rounded-lg border border-border">
-            <div className="flex items-start gap-3 mb-4">
-                {isActive ? (
-                    <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-                ) : (
-                    <ShieldCheck className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1">
-                    <h3 className="font-semibold text-sm mb-1">
-                        Human-in-the-Loop Gate
-                    </h3>
-                    {test.is_mitigated ? (
-                        <p className="text-xs text-success">
-                            ✓ This test has been reviewed and mitigated
-                        </p>
-                    ) : isActive ? (
-                        <p className="text-xs text-warning">
-                            High-risk verdict detected. Human review required.
-                        </p>
-                    ) : (
-                        <p className="text-xs text-muted-foreground">
-                            {test.status === "analyzing"
-                                ? "Waiting for council deliberation to complete..."
-                                : "No mitigation needed"}
-                        </p>
-                    )}
-                </div>
-            </div>
-
-            {test.mitigation_recommendation && (
-                <div className="mb-4 p-3 bg-muted/30 rounded-md">
-                    <div className="text-xs font-semibold mb-1">Recommendation:</div>
-                    <div className="text-xs text-muted-foreground">
-                        {test.mitigation_recommendation}
-                    </div>
-                </div>
-            )}
-
-            <button
-                onClick={handleMitigate}
-                disabled={!isActive || loading}
-                className={`w-full py-2 px-4 rounded-md font-semibold text-sm transition-all ${isActive
-                        ? "bg-warning text-background hover:bg-warning/90 shadow-glow cursor-pointer"
-                        : "bg-muted/30 text-muted-foreground cursor-not-allowed"
-                    }`}
-            >
-                {loading ? "Processing..." : test.is_mitigated ? "Mitigated" : "Mark as Mitigated"}
-            </button>
-
-            {test.risk_score !== undefined && (
-                <div className="mt-3 text-center">
-                    <div className="text-xs text-muted-foreground">Risk Score</div>
-                    <div className={`text-2xl font-bold ${test.risk_score >= 0.7 ? "text-danger" :
-                            test.risk_score >= 0.3 ? "text-warning" :
-                                "text-success"
-                        }`}>
-                        {(test.risk_score * 100).toFixed(0)}%
-                    </div>
-                </div>
-            )}
-        </div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="glass-effect squircle-lg p-6"
+      >
+        <h2 className="text-sm font-semibold mb-4">Risk Assessment</h2>
+        <p className="text-muted text-xs">Select a test to view risk analysis</p>
+      </motion.div>
     );
+  }
+
+  const riskScore = test.consensus_score || 0;
+  const riskLevel =
+    riskScore > 0.7 ? "high" : riskScore > 0.3 ? "medium" : "low";
+
+  const riskConfig = {
+    high: {
+      label: "High Risk",
+      color: "text-danger",
+      bg: "bg-danger/10",
+      border: "border-danger/30",
+      glow: "shadow-danger",
+    },
+    medium: {
+      label: "Medium Risk",
+      color: "text-warning",
+      bg: "bg-warning/10",
+      border: "border-warning/30",
+      glow: "shadow-warning",
+    },
+    low: {
+      label: "Low Risk",
+      color: "text-success",
+      bg: "bg-success/10",
+      border: "border-success/30",
+      glow: "shadow-success",
+    },
+  };
+
+  const config = riskConfig[riskLevel];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4 }}
+      className="glass-effect squircle-lg p-6"
+    >
+      <h2 className="text-sm font-semibold mb-6">Risk Assessment</h2>
+
+      {/* Risk Score Circle */}
+      <div className="flex flex-col items-center mb-6">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 400, 
+            damping: 28,
+            delay: 0.2 
+          }}
+          className={`w-32 h-32 rounded-full ${config.bg} ${config.border} border-2 flex items-center justify-center mb-3 ${config.glow}`}
+        >
+          <div className="text-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className={`text-3xl font-bold ${config.color}`}
+            >
+              {(riskScore * 100).toFixed(0)}%
+            </motion.div>
+            <div className="text-xs text-muted mt-1">Risk Score</div>
+          </div>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className={`px-4 py-1.5 squircle ${config.bg} ${config.color} ${config.border} border text-xs font-semibold`}
+        >
+          {config.label}
+        </motion.div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="space-y-3">
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          className="w-full py-3 squircle bg-success text-background font-semibold text-sm haptic-press hover:shadow-lg transition-all"
+        >
+          Approve Migration
+        </motion.button>
+        
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          className="w-full py-3 squircle bg-card border border-border text-primary font-semibold text-sm haptic-press hover:border-primary/30 transition-all"
+        >
+          Request Review
+        </motion.button>
+        
+        <motion.button
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          className="w-full py-3 squircle bg-danger/10 border border-danger/30 text-danger font-semibold text-sm haptic-press hover:bg-danger/20 transition-all"
+        >
+          Block Migration
+        </motion.button>
+      </div>
+
+      {/* Metadata */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.9 }}
+        className="mt-6 pt-6 border-t border-border/30 space-y-2"
+      >
+        <div className="flex justify-between text-xs">
+          <span className="text-muted">Endpoint</span>
+          <span className="text-primary font-medium">{test.endpoint}</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-muted">Status</span>
+          <span className={`font-medium ${
+            test.status === "passed" ? "text-success" : "text-danger"
+          }`}>
+            {test.status}
+          </span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-muted">Timestamp</span>
+          <span className="text-primary font-medium">
+            {new Date(test.created_at).toLocaleString()}
+          </span>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
 }

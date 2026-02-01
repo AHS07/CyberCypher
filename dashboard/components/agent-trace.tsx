@@ -1,202 +1,187 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import ReactFlow, {
-    Node,
-    Edge,
-    Background,
-    Controls,
-    MiniMap,
-    useNodesState,
-    useEdgesState,
-    MarkerType,
+import { motion } from "framer-motion";
+import ReactFlow, { 
+  Node, 
+  Edge, 
+  Background, 
+  Controls,
+  MarkerType 
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { ShadowTest } from "@/lib/types";
 
 interface Props {
-    test?: ShadowTest;
+  test?: ShadowTest;
 }
 
 export function AgentTrace({ test }: Props) {
-    const [nodes, setNodes, onNodesChange] = useNodesState([]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-
-    useEffect(() => {
-        if (!test) {
-            // Default graph structure
-            const defaultNodes: Node[] = [
-                {
-                    id: "start",
-                    type: "input",
-                    data: { label: "Start" },
-                    position: { x: 0, y: 150 },
-                    style: {
-                        background: "hsl(217, 91%, 60%)",
-                        color: "white",
-                        border: "2px solid hsl(217, 91%, 50%)",
-                        borderRadius: "8px",
-                    },
-                },
-                {
-                    id: "primary",
-                    data: { label: "Primary Analyzer\n(Claude)" },
-                    position: { x: 200, y: 150 },
-                    style: {
-                        background: "hsl(222, 47%, 15%)",
-                        color: "hsl(213, 31%, 91%)",
-                        border: "2px solid hsl(223, 23%, 23%)",
-                        borderRadius: "8px",
-                        padding: "12px",
-                    },
-                },
-                {
-                    id: "skeptic",
-                    data: { label: "Skeptic Critic\n(Llama)" },
-                    position: { x: 400, y: 150 },
-                    style: {
-                        background: "hsl(222, 47%, 15%)",
-                        color: "hsl(213, 31%, 91%)",
-                        border: "2px solid hsl(223, 23%, 23%)",
-                        borderRadius: "8px",
-                        padding: "12px",
-                    },
-                },
-                {
-                    id: "judge",
-                    data: { label: "Consensus Judge\n(Gemini)" },
-                    position: { x: 600, y: 150 },
-                    style: {
-                        background: "hsl(222, 47%, 15%)",
-                        color: "hsl(213, 31%, 91%)",
-                        border: "2px solid hsl(223, 23%, 23%)",
-                        borderRadius: "8px",
-                        padding: "12px",
-                    },
-                },
-                {
-                    id: "end",
-                    type: "output",
-                    data: { label: "Complete" },
-                    position: { x: 800, y: 150 },
-                    style: {
-                        background: "hsl(142, 71%, 45%)",
-                        color: "white",
-                        border: "2px solid hsl(142, 71%, 40%)",
-                        borderRadius: "8px",
-                    },
-                },
-            ];
-
-            const defaultEdges: Edge[] = [
-                {
-                    id: "e-start-primary",
-                    source: "start",
-                    target: "primary",
-                    animated: false,
-                    markerEnd: { type: MarkerType.ArrowClosed },
-                },
-                {
-                    id: "e-primary-skeptic",
-                    source: "primary",
-                    target: "skeptic",
-                    animated: false,
-                    markerEnd: { type: MarkerType.ArrowClosed },
-                },
-                {
-                    id: "e-skeptic-judge",
-                    source: "skeptic",
-                    target: "judge",
-                    animated: false,
-                    markerEnd: { type: MarkerType.ArrowClosed },
-                },
-                {
-                    id: "e-judge-end",
-                    source: "judge",
-                    target: "end",
-                    animated: false,
-                    markerEnd: { type: MarkerType.ArrowClosed },
-                },
-            ];
-
-            setNodes(defaultNodes);
-            setEdges(defaultEdges);
-            return;
-        }
-
-        // Update nodes based on test status
-        const newNodes: Node[] = nodes.map(node => ({ ...node, style: { ...node.style } }));
-        const opinions = test.council_opinions || [];
-
-        // Highlight active nodes
-        if (test.status === "analyzing") {
-            const currentStage = opinions.length;
-
-            newNodes.forEach((node) => {
-                if (node.id === "primary" && currentStage >= 1) {
-                    node.style = {
-                        ...node.style,
-                        border: "2px solid hsl(142, 71%, 45%)",
-                        boxShadow: "0 0 20px rgba(34, 197, 94, 0.3)",
-                    };
-                }
-                if (node.id === "skeptic" && currentStage >= 2) {
-                    node.style = {
-                        ...node.style,
-                        border: "2px solid hsl(142, 71%, 45%)",
-                        boxShadow: "0 0 20px rgba(34, 197, 94, 0.3)",
-                    };
-                }
-                if (node.id === "judge" && currentStage >= 3) {
-                    node.style = {
-                        ...node.style,
-                        border: "2px solid hsl(142, 71%, 45%)",
-                        boxShadow: "0 0 20px rgba(34, 197, 94, 0.3)",
-                    };
-                }
-
-                // Pulse current active node
-                if (
-                    (node.id === "primary" && currentStage === 0) ||
-                    (node.id === "skeptic" && currentStage === 1) ||
-                    (node.id === "judge" && currentStage === 2)
-                ) {
-                    node.style = {
-                        ...node.style,
-                        border: "2px solid hsl(217, 91%, 60%)",
-                        boxShadow: "0 0 20px rgba(96, 165, 250, 0.5)",
-                        animation: "pulse 2s infinite",
-                    };
-                }
-            });
-        }
-
-        setNodes(newNodes);
-    }, [test]);
-
+  if (!test) {
     return (
-        <div className="h-full flex flex-col bg-card rounded-lg border border-border overflow-hidden">
-            <div className="px-4 py-3 border-b border-border">
-                <h2 className="font-semibold text-sm">Agent Trace</h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                    Live visualization of council deliberation
-                </p>
-            </div>
-
-            <div className="flex-1">
-                <ReactFlow
-                    nodes={nodes}
-                    edges={edges}
-                    onNodesChange={onNodesChange}
-                    onEdgesChange={onEdgesChange}
-                    fitView
-                    className="bg-background"
-                >
-                    <Background />
-                    <Controls />
-                    <MiniMap />
-                </ReactFlow>
-            </div>
-        </div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="glass-effect squircle-lg p-8 h-[400px] flex items-center justify-center"
+      >
+        <p className="text-muted text-sm">Select a test to view agent trace</p>
+      </motion.div>
     );
+  }
+
+  const nodes: Node[] = [
+    {
+      id: "1",
+      type: "input",
+      data: { label: "Request" },
+      position: { x: 250, y: 0 },
+      style: {
+        background: "#0C0C0E",
+        color: "#FFFFFF",
+        border: "1px solid #1C1C1E",
+        borderRadius: "28px",
+        padding: "12px 20px",
+        fontSize: "12px",
+        fontWeight: "600",
+      },
+    },
+    {
+      id: "2",
+      data: { label: "Primary Analyzer" },
+      position: { x: 100, y: 100 },
+      style: {
+        background: "#10B981",
+        color: "#000000",
+        border: "2px solid #10B981",
+        borderRadius: "28px",
+        padding: "12px 20px",
+        fontSize: "12px",
+        fontWeight: "600",
+      },
+    },
+    {
+      id: "3",
+      data: { label: "Skeptic Critic" },
+      position: { x: 250, y: 100 },
+      style: {
+        background: "#F59E0B",
+        color: "#000000",
+        border: "2px solid #F59E0B",
+        borderRadius: "28px",
+        padding: "12px 20px",
+        fontSize: "12px",
+        fontWeight: "600",
+      },
+    },
+    {
+      id: "4",
+      data: { label: "Consensus Judge" },
+      position: { x: 400, y: 100 },
+      style: {
+        background: "#FFFFFF",
+        color: "#000000",
+        border: "2px solid #FFFFFF",
+        borderRadius: "28px",
+        padding: "12px 20px",
+        fontSize: "12px",
+        fontWeight: "600",
+      },
+    },
+    {
+      id: "5",
+      type: "output",
+      data: { 
+        label: test.status === "passed" ? "✓ Passed" : "✗ Failed" 
+      },
+      position: { x: 250, y: 200 },
+      style: {
+        background: test.status === "passed" ? "#10B981" : "#EF4444",
+        color: "#000000",
+        border: `2px solid ${test.status === "passed" ? "#10B981" : "#EF4444"}`,
+        borderRadius: "28px",
+        padding: "12px 20px",
+        fontSize: "12px",
+        fontWeight: "600",
+      },
+    },
+  ];
+
+  const edges: Edge[] = [
+    {
+      id: "e1-2",
+      source: "1",
+      target: "2",
+      animated: true,
+      style: { stroke: "#10B981", strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#10B981" },
+    },
+    {
+      id: "e1-3",
+      source: "1",
+      target: "3",
+      animated: true,
+      style: { stroke: "#F59E0B", strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#F59E0B" },
+    },
+    {
+      id: "e1-4",
+      source: "1",
+      target: "4",
+      animated: true,
+      style: { stroke: "#FFFFFF", strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#FFFFFF" },
+    },
+    {
+      id: "e2-5",
+      source: "2",
+      target: "5",
+      style: { stroke: "#1C1C1E", strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#1C1C1E" },
+    },
+    {
+      id: "e3-5",
+      source: "3",
+      target: "5",
+      style: { stroke: "#1C1C1E", strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#1C1C1E" },
+    },
+    {
+      id: "e4-5",
+      source: "4",
+      target: "5",
+      style: { stroke: "#1C1C1E", strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: "#1C1C1E" },
+    },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4 }}
+      className="glass-effect squircle-lg overflow-hidden"
+    >
+      <div className="p-4 border-b border-border/30">
+        <h2 className="text-sm font-semibold">Agent Council Flow</h2>
+      </div>
+      <div className="h-[400px] bg-card/30">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          fitView
+          attributionPosition="bottom-left"
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background color="#1C1C1E" gap={16} />
+          <Controls 
+            style={{
+              background: "#0C0C0E",
+              border: "1px solid #1C1C1E",
+              borderRadius: "28px",
+            }}
+          />
+        </ReactFlow>
+      </div>
+    </motion.div>
+  );
 }

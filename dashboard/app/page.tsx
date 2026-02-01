@@ -1,98 +1,155 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import { RealTimeFeed } from "@/components/real-time-feed";
 import { ParityVisualizer } from "@/components/parity-visualizer";
 import { AgentTrace } from "@/components/agent-trace";
 import { ReliabilityBadge } from "@/components/reliability-badge";
 import { MitigationGate } from "@/components/mitigation-gate";
 import { ShadowTest } from "@/lib/types";
-import { Shield } from "lucide-react";
 
 export default function Dashboard() {
   const [selectedTest, setSelectedTest] = useState<ShadowTest | undefined>();
+  const { scrollY } = useScroll();
+  
+  // Header shrinks on scroll - One UI style
+  const headerHeight = useTransform(scrollY, [0, 100], [120, 60]);
+  const headerOpacity = useTransform(scrollY, [0, 50], [1, 0.95]);
+  const titleSize = useTransform(scrollY, [0, 100], [32, 20]);
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <Shield className="w-8 h-8 text-primary" />
-          <h1 className="text-3xl font-bold">Shadow Twin Guardian</h1>
+    <div className="min-h-screen bg-background text-primary">
+      {/* One UI Style Header - Large and Airy */}
+      <motion.header
+        style={{ height: headerHeight, opacity: headerOpacity }}
+        className="sticky top-0 z-50 glass-effect border-b border-border/30 px-6 flex items-end pb-4 transition-all"
+      >
+        <div className="w-full max-w-[1600px] mx-auto">
+          <motion.h1
+            style={{ fontSize: titleSize }}
+            className="font-bold tracking-tight"
+          >
+            Shadow Twin Guardian
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: scrollY.get() < 50 ? 1 : 0 }}
+            className="text-muted text-sm mt-1"
+          >
+            AI-Powered Migration Safety Net
+          </motion.p>
         </div>
-        <p className="text-muted-foreground">
-          Multi-Agent Orchestration for E-Commerce Migration Parity Testing
-        </p>
-      </div>
+      </motion.header>
 
-      {/* Reliability Badge */}
-      <div className="mb-6">
-        <ReliabilityBadge />
-      </div>
+      {/* Main Content */}
+      <div className="max-w-[1600px] mx-auto px-6 py-8">
+        {/* System Health - Breathing Badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.68, -0.55, 0.265, 1.55] }}
+          className="mb-8"
+        >
+          <ReliabilityBadge />
+        </motion.div>
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-12 gap-6 h-[calc(100vh-220px)]">
-        {/* Left Column - Real-Time Feed (3 cols) */}
-        <div className="col-span-3 h-full">
-          <RealTimeFeed onSelectTest={setSelectedTest} />
-        </div>
+        {/* Bento Grid Layout */}
+        <div className="grid grid-cols-12 gap-6">
+          {/* Left Column - Test Feed */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="col-span-12 lg:col-span-3"
+          >
+            <RealTimeFeed onSelectTest={setSelectedTest} />
+          </motion.div>
 
-        {/* Center Column - Visualizers (6 cols) */}
-        <div className="col-span-6 flex flex-col gap-6 h-full">
-          {/* Agent Trace */}
-          <div className="flex-1">
+          {/* Center Column - Visualizations */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="col-span-12 lg:col-span-6 space-y-6"
+          >
             <AgentTrace test={selectedTest} />
-          </div>
-
-          {/* Parity Visualizer */}
-          <div className="flex-1">
             <ParityVisualizer
               legacy={selectedTest?.legacy_response || {}}
               headless={selectedTest?.headless_response || {}}
               diff={selectedTest?.diff_report || {}}
             />
-          </div>
-        </div>
+          </motion.div>
 
-        {/* Right Column - Actions & Details (3 cols) */}
-        <div className="col-span-3 flex flex-col gap-6 h-full">
-          {/* Mitigation Gate */}
-          <MitigationGate test={selectedTest} />
-
-          {/* Council Opinions */}
-          {selectedTest && selectedTest.council_opinions.length > 0 && (
-            <div className="flex-1 bg-card rounded-lg border border-border p-4 overflow-auto">
-              <h3 className="font-semibold text-sm mb-4">Council Deliberation</h3>
-              <div className="space-y-3">
-                {selectedTest.council_opinions.map((opinion, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 bg-muted/30 rounded-md border border-border/50"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold capitalize">
-                        {opinion.agent.replace("_", " ")}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {opinion.provider}
-                      </span>
-                    </div>
-                    <div className="text-xs text-foreground/80 mb-2 line-clamp-3">
-                      {opinion.analysis}
-                    </div>
-                    <div className="flex items-center gap-4 text-xs">
-                      <span>
-                        Risk: <span className="font-semibold">{(opinion.risk_score * 100).toFixed(0)}%</span>
-                      </span>
-                      <span>
-                        Confidence: <span className="font-semibold">{(opinion.confidence * 100).toFixed(0)}%</span>
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Right Column - Actions & Council */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="col-span-12 lg:col-span-3 space-y-6"
+          >
+            <MitigationGate test={selectedTest} />
+            
+            {/* Council Opinions - Chat Style */}
+            {selectedTest && selectedTest.council_opinions && selectedTest.council_opinions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4 }}
+                className="glass-effect squircle-lg p-6"
+              >
+                <h3 className="text-sm font-semibold mb-4">Council Deliberation</h3>
+                <div className="space-y-3">
+                  {selectedTest.council_opinions.map((opinion: any, idx: number) => {
+                    const isLeft = idx % 2 === 0;
+                    return (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, x: isLeft ? -20 : 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ 
+                          duration: 0.4, 
+                          delay: idx * 0.1,
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 28
+                        }}
+                        className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}
+                      >
+                        <div
+                          className={`max-w-[85%] p-4 squircle haptic-hover ${
+                            isLeft 
+                              ? 'bg-card border border-border' 
+                              : 'bg-success/10 border border-success/20'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-muted uppercase tracking-wide">
+                              {opinion.agent?.replace("_", " ")}
+                            </span>
+                            <span
+                              className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                opinion.risk_score > 0.7
+                                  ? "bg-danger/20 text-danger"
+                                  : opinion.risk_score > 0.3
+                                  ? "bg-warning/20 text-warning"
+                                  : "bg-success/20 text-success"
+                              }`}
+                            >
+                              {(opinion.risk_score * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                          <p className="text-sm text-primary/90 leading-relaxed">
+                            {opinion.analysis}
+                          </p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
         </div>
       </div>
     </div>

@@ -1,26 +1,65 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    @apply bg-background text-primary antialiased;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-card;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted/30;
+  }
+
+  .glass-effect {
+    @apply bg-card/50 backdrop-blur-2xl border border-border/50;
+  }
+
+  .squircle {
+    @apply rounded-squircle;
+  }
+
+  .squircle-lg {
+    @apply rounded-squircle-lg;
+  }
+
+  .haptic-press {
+    @apply active:scale-95 transition-transform duration-150;
+  }
+
+  .haptic-hover {
+    @apply hover:scale-[1.02] transition-all duration-200;
+  }
+
+  .glow-soft {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+  }
+
+  .breathing-glow {
+    animation: breathing-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes breathing-glow {
+    0%, 100% {
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4);
+    }
+  }
 }
