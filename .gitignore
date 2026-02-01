@@ -27,6 +27,12 @@ dist/
  dashboard/.env.local
 !.env.example
 
+# API Keys and Tokens (additional safety)
+**/hf_*
+**/*token*
+**/*key*
+**/.*env*
+
 # IDE
 .vscode/
 .idea/
