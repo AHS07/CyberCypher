@@ -1,4 +1,4 @@
-# Shadow-SHERPA Hybrid System
+# Shadow Twin Guardian
 
 A sophisticated multi-agent AI system for e-commerce migration parity testing. The system uses a council of specialized AI agents powered by HuggingFace models to analyze API differences and provide intelligent deployment recommendations with human oversight capabilities.
 
@@ -339,8 +339,8 @@ python shadow_engine.py --payload '{"item": "server", "price": 10000}'
 ## 👥 Team
 
 **Built by:**
-- **Aayush**: System Architecture, Multi-Agent Council, API Integration
-- **Keshav**: Frontend Dashboard, Real-time Visualization, UX Design
+- **Aayush**
+- **Keshav**
 
 ## 📝 License
 
