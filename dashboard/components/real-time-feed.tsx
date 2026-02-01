@@ -52,7 +52,7 @@ export function RealTimeFeed({ onSelectTest }: Props) {
   }, []);
 
   const handleSelect = (test: ShadowTest) => {
-    setSelectedId(test.id);
+    setSelectedId(test.id.toString());
     onSelectTest(test);
   };
 
@@ -84,7 +84,7 @@ export function RealTimeFeed({ onSelectTest }: Props) {
             >
               <motion.button
                 onClick={() => handleSelect(test)}
-                className={`w-full p-4 squircle text-left transition-all haptic-press ${selectedId === test.id
+                className={`w-full p-4 squircle text-left transition-all haptic-press ${selectedId === test.id.toString()
                     ? "bg-primary-10 border-2 border-primary-30 hover:shadow-lg"
                     : "bg-card border border-border hover:border-primary-20 haptic-hover"
                   }`}
