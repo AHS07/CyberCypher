@@ -12,7 +12,7 @@ import { ShadowTest } from "@/lib/types";
 export default function Dashboard() {
   const [selectedTest, setSelectedTest] = useState<ShadowTest | undefined>();
   const { scrollY } = useScroll();
-  
+
   // Header shrinks on scroll - One UI style
   const headerHeight = useTransform(scrollY, [0, 100], [120, 60]);
   const headerOpacity = useTransform(scrollY, [0, 50], [1, 0.95]);
@@ -23,9 +23,9 @@ export default function Dashboard() {
       {/* One UI Style Header - Large and Airy */}
       <motion.header
         style={{ height: headerHeight, opacity: headerOpacity }}
-        className="sticky top-0 z-50 glass-effect border-b border-border/30 px-6 flex items-end pb-4 transition-all"
+        className="sticky top-0 z-50 glass-effect border-b border-border-30 px-6 flex items-end pb-4 transition-all"
       >
-        <div className="w-full max-w-[1600px] mx-auto">
+        <div className="w-full max-w-1600 mx-auto">
           <motion.h1
             style={{ fontSize: titleSize }}
             className="font-bold tracking-tight"
@@ -43,7 +43,7 @@ export default function Dashboard() {
       </motion.header>
 
       {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-6 py-8">
+      <div className="max-w-1600 mx-auto px-6 py-8">
         {/* System Health - Breathing Badge */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -89,7 +89,7 @@ export default function Dashboard() {
             className="col-span-12 lg:col-span-3 space-y-6"
           >
             <MitigationGate test={selectedTest} />
-            
+
             {/* Council Opinions - Chat Style */}
             {selectedTest && selectedTest.council_opinions && selectedTest.council_opinions.length > 0 && (
               <motion.div
@@ -107,39 +107,40 @@ export default function Dashboard() {
                         key={idx}
                         initial={{ opacity: 0, x: isLeft ? -20 : 20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ 
-                          duration: 0.4, 
+                        transition={{
+                          duration: 0.4,
                           delay: idx * 0.1,
                           type: "spring",
                           stiffness: 400,
                           damping: 28
                         }}
-                        className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}
+                        style={{
+                          display: 'flex',
+                          justifyContent: isLeft ? 'flex-start' : 'flex-end'
+                        }}
                       >
                         <div
-                          className={`max-w-[85%] p-4 squircle haptic-hover ${
-                            isLeft 
-                              ? 'bg-card border border-border' 
-                              : 'bg-success/10 border border-success/20'
-                          }`}
+                          className={`max-w-85 p-4 squircle haptic-hover ${isLeft
+                              ? 'bg-card border border-border'
+                              : 'bg-success-10 border border-success-20'
+                            }`}
                         >
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-medium text-muted uppercase tracking-wide">
                               {opinion.agent?.replace("_", " ")}
                             </span>
                             <span
-                              className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                opinion.risk_score > 0.7
-                                  ? "bg-danger/20 text-danger"
+                              className={`text-xs font-bold px-2 py-1 rounded-full ${opinion.risk_score > 0.7
+                                  ? "bg-danger-20 text-danger"
                                   : opinion.risk_score > 0.3
-                                  ? "bg-warning/20 text-warning"
-                                  : "bg-success/20 text-success"
-                              }`}
+                                    ? "bg-warning-20 text-warning"
+                                    : "bg-success-20 text-success"
+                                }`}
                             >
                               {(opinion.risk_score * 100).toFixed(0)}%
                             </span>
                           </div>
-                          <p className="text-sm text-primary/90 leading-relaxed">
+                          <p className="text-sm text-primary-90 leading-relaxed">
                             {opinion.analysis}
                           </p>
                         </div>

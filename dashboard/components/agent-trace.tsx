@@ -1,12 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import ReactFlow, { 
-  Node, 
-  Edge, 
-  Background, 
+import ReactFlow, {
+  Node,
+  Edge,
+  Background,
   Controls,
-  MarkerType 
+  MarkerType
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { ShadowTest } from "@/lib/types";
@@ -22,7 +22,7 @@ export function AgentTrace({ test }: Props) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
-        className="glass-effect squircle-lg p-8 h-[400px] flex items-center justify-center"
+        className="glass-effect squircle-lg p-8 h-400 flex items-center justify-center"
       >
         <p className="text-muted text-sm">Select a test to view agent trace</p>
       </motion.div>
@@ -90,14 +90,14 @@ export function AgentTrace({ test }: Props) {
     {
       id: "5",
       type: "output",
-      data: { 
-        label: test.status === "passed" ? "✓ Passed" : "✗ Failed" 
+      data: {
+        label: test.status === "complete" ? "✓ Complete" : test.status === "failed" ? "✗ Failed" : "⏳ Processing"
       },
       position: { x: 250, y: 200 },
       style: {
-        background: test.status === "passed" ? "#10B981" : "#EF4444",
+        background: test.status === "complete" ? "#10B981" : test.status === "failed" ? "#EF4444" : "#F59E0B",
         color: "#000000",
-        border: `2px solid ${test.status === "passed" ? "#10B981" : "#EF4444"}`,
+        border: `2px solid ${test.status === "complete" ? "#10B981" : test.status === "failed" ? "#EF4444" : "#F59E0B"}`,
         borderRadius: "28px",
         padding: "12px 20px",
         fontSize: "12px",
@@ -161,10 +161,10 @@ export function AgentTrace({ test }: Props) {
       transition={{ duration: 0.4 }}
       className="glass-effect squircle-lg overflow-hidden"
     >
-      <div className="p-4 border-b border-border/30">
+      <div className="p-4 border-b border-border-30">
         <h2 className="text-sm font-semibold">Agent Council Flow</h2>
       </div>
-      <div className="h-[400px] bg-card/30">
+      <div className="h-400 bg-card-30">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -173,7 +173,7 @@ export function AgentTrace({ test }: Props) {
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#1C1C1E" gap={16} />
-          <Controls 
+          <Controls
             style={{
               background: "#0C0C0E",
               border: "1px solid #1C1C1E",

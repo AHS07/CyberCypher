@@ -8,10 +8,10 @@ interface Props {
     errorRate?: number;
 }
 
-export function ReliabilityBadge({ 
-    uptime = 99.9, 
-    latency = 45, 
-    errorRate = 0.05 
+export function ReliabilityBadge({
+    uptime = 99.9,
+    latency = 45,
+    errorRate = 0.05
 }: Props) {
     const getStatus = () => {
         if (uptime >= 99.9 && errorRate < 0.1) return "operational";
@@ -25,20 +25,20 @@ export function ReliabilityBadge({
         operational: {
             label: "Operational",
             color: "text-success",
-            bg: "bg-success/10",
-            border: "border-success/20",
+            bg: "bg-success-10",
+            border: "border-success-20",
         },
         degraded: {
             label: "Degraded",
             color: "text-warning",
-            bg: "bg-warning/10",
-            border: "border-warning/20",
+            bg: "bg-warning-10",
+            border: "border-warning-20",
         },
         outage: {
             label: "Outage",
             color: "text-danger",
-            bg: "bg-danger/10",
-            border: "border-danger/20",
+            bg: "bg-danger-10",
+            border: "border-danger-20",
         },
     };
 
@@ -57,7 +57,7 @@ export function ReliabilityBadge({
                     initial={{ scale: 0.9 }}
                     animate={{ scale: 1 }}
                     transition={{ duration: 0.3, delay: 0.2 }}
-                    className={`px-4 py-1.5 rounded-full text-xs font-medium ${config.bg} ${config.color} ${config.border} border breathing-glow`}
+                    className={`px-4 py-1-5 rounded-full text-xs font-medium ${config.bg} ${config.color} ${config.border} border breathing-glow`}
                 >
                     {config.label}
                 </motion.div>
@@ -97,9 +97,8 @@ export function ReliabilityBadge({
                             initial={{ width: 0 }}
                             animate={{ width: `${Math.min((latency / 500) * 100, 100)}%` }}
                             transition={{ duration: 1, delay: 0.4, ease: "easeOut" }}
-                            className={`h-full rounded-full ${
-                                latency < 100 ? "bg-success" : latency < 300 ? "bg-warning" : "bg-danger"
-                            }`}
+                            className={`h-full rounded-full ${latency < 100 ? "bg-success" : latency < 300 ? "bg-warning" : "bg-danger"
+                                }`}
                         />
                     </div>
                 </motion.div>
@@ -118,9 +117,8 @@ export function ReliabilityBadge({
                             initial={{ width: 0 }}
                             animate={{ width: `${Math.min(errorRate * 10, 100)}%` }}
                             transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
-                            className={`h-full rounded-full ${
-                                errorRate < 0.1 ? "bg-success" : errorRate < 1 ? "bg-warning" : "bg-danger"
-                            }`}
+                            className={`h-full rounded-full ${errorRate < 0.1 ? "bg-success" : errorRate < 1 ? "bg-warning" : "bg-danger"
+                                }`}
                         />
                     </div>
                 </motion.div>

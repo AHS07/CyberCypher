@@ -20,12 +20,13 @@ class HuggingFaceManager:
             api_key=token,
         )
         
-        # Model assignments for different agents (using supported models)
+        # Model assignments for different agents (TRUE MULTI-AGENT DIVERSITY)
+        # Using models that are more likely to be supported by HF router
         self.models = {
-            "primary_analyzer": "Qwen/Qwen2.5-7B-Instruct:together",
-            "skeptic_critic": "Qwen/Qwen2.5-7B-Instruct:together",  # Use same model with different prompts
-            "consensus_judge": "Qwen/Qwen2.5-7B-Instruct:together",
-            "fallback": "Qwen/Qwen2.5-7B-Instruct:together"
+            "primary_analyzer": "Qwen/Qwen2.5-7B-Instruct",      # Technical analysis
+            "skeptic_critic": "microsoft/Phi-3-medium-4k-instruct",  # False positive detection  
+            "consensus_judge": "mistralai/Mistral-7B-Instruct-v0.3", # Risk assessment
+            "fallback": "Qwen/Qwen2.5-7B-Instruct"
         }
         
         # Health tracking

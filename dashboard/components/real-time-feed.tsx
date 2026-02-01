@@ -26,7 +26,7 @@ export function RealTimeFeed({ onSelectTest }: Props) {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(20);
-      
+
       if (data) setTests(data);
     };
 
@@ -57,7 +57,7 @@ export function RealTimeFeed({ onSelectTest }: Props) {
   };
 
   return (
-    <div className="glass-effect squircle-lg p-6 h-[calc(100vh-200px)] flex flex-col">
+    <div className="glass-effect squircle-lg p-6 h-calc-viewport flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold">Live Tests</h2>
         <div className="flex items-center gap-2">
@@ -84,41 +84,39 @@ export function RealTimeFeed({ onSelectTest }: Props) {
             >
               <motion.button
                 onClick={() => handleSelect(test)}
-                className={`w-full p-4 squircle text-left transition-all haptic-press ${
-                  selectedId === test.id
-                    ? "bg-primary/10 border-2 border-primary/30 shadow-lg"
-                    : "bg-card border border-border hover:border-primary/20 haptic-hover"
-                }`}
+                className={`w-full p-4 squircle text-left transition-all haptic-press ${selectedId === test.id
+                    ? "bg-primary-10 border-2 border-primary-30 hover:shadow-lg"
+                    : "bg-card border border-border hover:border-primary-20 haptic-hover"
+                  }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
               >
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-xs font-medium text-muted">
-                    {test.endpoint}
+                    {test.merchant_id}
                   </span>
                   <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                      test.status === "passed"
-                        ? "bg-success/20 text-success"
+                    className={`text-xs font-bold px-2 py-1 rounded-full ${test.status === "complete"
+                        ? "bg-success-20 text-success"
                         : test.status === "failed"
-                        ? "bg-danger/20 text-danger"
-                        : "bg-warning/20 text-warning"
-                    }`}
+                          ? "bg-danger-20 text-danger"
+                          : "bg-warning-20 text-warning"
+                      }`}
                   >
                     {test.status}
                   </span>
                 </div>
-                
-                <div className="text-sm text-primary/90 mb-2 line-clamp-2">
-                  {test.test_name || "Unnamed Test"}
+
+                <div className="text-sm text-primary-90 mb-2 line-clamp-2">
+                  {test.test_id || "Unnamed Test"}
                 </div>
-                
+
                 <div className="flex items-center gap-3 text-xs text-muted">
                   <span>{new Date(test.created_at).toLocaleTimeString()}</span>
-                  {test.consensus_score !== undefined && (
+                  {test.risk_score !== undefined && (
                     <span className="flex items-center gap-1">
-                      <div className="w-1 h-1 rounded-full bg-muted" />
-                      {(test.consensus_score * 100).toFixed(0)}% consensus
+                      <div className="w-1 h-2 rounded-full bg-muted" />
+                      {(test.risk_score * 100).toFixed(0)}% risk
                     </span>
                   )}
                 </div>

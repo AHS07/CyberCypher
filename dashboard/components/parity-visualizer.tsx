@@ -19,18 +19,17 @@ export function ParityVisualizer({ legacy, headless, diff }: Props) {
             transition={{ duration: 0.4 }}
             className="glass-effect squircle-lg overflow-hidden"
         >
-            <div className="p-4 border-b border-border/30 flex justify-between items-center">
+            <div className="p-4 border-b border-border-30 flex justify-between items-center">
                 <h2 className="text-sm font-semibold">API Comparison</h2>
                 <div className="flex gap-2">
                     <motion.button
                         onClick={() => setView("split")}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className={`px-4 py-1.5 squircle text-xs font-medium transition-all ${
-                            view === "split"
+                        className={`px-4 py-1-5 squircle text-xs font-medium transition-all ${view === "split"
                                 ? "bg-primary text-background"
                                 : "bg-card border border-border text-muted hover:text-primary"
-                        }`}
+                            }`}
                     >
                         Split
                     </motion.button>
@@ -38,11 +37,10 @@ export function ParityVisualizer({ legacy, headless, diff }: Props) {
                         onClick={() => setView("diff")}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className={`px-4 py-1.5 squircle text-xs font-medium transition-all ${
-                            view === "diff"
+                        className={`px-4 py-1-5 squircle text-xs font-medium transition-all ${view === "diff"
                                 ? "bg-primary text-background"
                                 : "bg-card border border-border text-muted hover:text-primary"
-                        }`}
+                            }`}
                     >
                         Diff
                     </motion.button>
@@ -57,8 +55,8 @@ export function ParityVisualizer({ legacy, headless, diff }: Props) {
                         transition={{ duration: 0.3 }}
                     >
                         <div className="text-xs text-muted mb-2 font-medium">Legacy</div>
-                        <div className="bg-card/50 border border-border squircle p-4 max-h-[300px] overflow-auto custom-scrollbar">
-                            <pre className="text-xs font-mono text-primary/80">
+                        <div className="bg-card-50 border border-border squircle p-4 max-h-300 overflow-auto custom-scrollbar">
+                            <pre className="text-xs font-mono text-primary-80">
                                 {JSON.stringify(legacy, null, 2)}
                             </pre>
                         </div>
@@ -69,8 +67,8 @@ export function ParityVisualizer({ legacy, headless, diff }: Props) {
                         transition={{ duration: 0.3 }}
                     >
                         <div className="text-xs text-muted mb-2 font-medium">Headless</div>
-                        <div className="bg-card/50 border border-border squircle p-4 max-h-[300px] overflow-auto custom-scrollbar">
-                            <pre className="text-xs font-mono text-primary/80">
+                        <div className="bg-card-50 border border-border squircle p-4 max-h-300 overflow-auto custom-scrollbar">
+                            <pre className="text-xs font-mono text-primary-80">
                                 {JSON.stringify(headless, null, 2)}
                             </pre>
                         </div>
@@ -91,10 +89,10 @@ export function ParityVisualizer({ legacy, headless, diff }: Props) {
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.3, delay: index * 0.05 }}
-                                    className="bg-card/50 border border-warning/20 squircle p-4 text-xs haptic-hover"
+                                    className="bg-card-50 border border-warning-20 squircle p-4 text-xs haptic-hover"
                                 >
                                     <div className="text-warning font-semibold mb-2">{key}</div>
-                                    <pre className="text-primary/70 font-mono">
+                                    <pre className="text-primary-70 font-mono">
                                         {JSON.stringify(value, null, 2)}
                                     </pre>
                                 </motion.div>
@@ -107,7 +105,7 @@ export function ParityVisualizer({ legacy, headless, diff }: Props) {
                             transition={{ duration: 0.4 }}
                             className="text-center py-12"
                         >
-                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/10 flex items-center justify-center">
+                            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success-10 flex items-center justify-center">
                                 <svg
                                     className="w-8 h-8 text-success"
                                     fill="none"

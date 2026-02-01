@@ -27,8 +27,8 @@ export interface ShadowTest {
     legacy_response: Record<string, any>;
     headless_response: Record<string, any>;
     council_opinions: CouncilOpinion[];
-    active_provider: string;
-    providers_attempted: string[];
+    active_provider?: string;
+    providers_attempted?: string[];
     is_mitigated: boolean;
     risk_score?: number;
     final_verdict?: Verdict;
