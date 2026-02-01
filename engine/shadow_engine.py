@@ -89,15 +89,19 @@ def run_shadow_replay(payload: dict, merchant_id: str = "default_merchant", retr
     if "dictionary_item_removed" in diff_str: flags.append("missing_key")
     if headless_time_avg > legacy_time * 1.5: flags.append("performance_regression")
     
-    # Semantic check
+    # Semantic check - only remove truly safe equivalences
     if diff and "type_changes" in diff:
         type_changes = diff["type_changes"]
         keys_to_remove = []
         for path, change in type_changes.items():
             old_val = change.get("old_value") if isinstance(change, dict) else None
             new_val = change.get("new_value") if isinstance(change, dict) else None
+            # Only remove if it's a very safe conversion (like int to float)
+            # Keep string/number conversions for council analysis
             if old_val is not None and new_val is not None:
-                if check_semantic_equivalence(old_val, new_val):
+                if isinstance(old_val, int) and isinstance(new_val, float) and old_val == new_val:
+                    keys_to_remove.append(path)
+                elif isinstance(old_val, float) and isinstance(new_val, int) and old_val == new_val:
                     keys_to_remove.append(path)
         
         for k in keys_to_remove:
@@ -127,7 +131,8 @@ def run_shadow_replay(payload: dict, merchant_id: str = "default_merchant", retr
         "retries_used": len(headless_resps)
     }
     
-    log_to_supabase("shadow_tests", report)
+    # Don't log to Supabase here - let the orchestrator handle it
+    # log_to_supabase("shadow_tests", report)
     
     # Trigger council analysis on orchestrator
     trigger_council_analysis(report, merchant_id)

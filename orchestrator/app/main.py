@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan context manager."""
     logger.info("Shadow Twin Guardian Orchestrator starting up...")
     logger.info(f"Supabase URL: {settings.supabase_url}")
-    logger.info(f"Ollama endpoint: {settings.ollama_base_url}")
+    logger.info(f"HuggingFace API configured with token: {settings.hf_token[:10]}...")
     yield
     logger.info("Shadow Twin Guardian Orchestrator shutting down...")
 

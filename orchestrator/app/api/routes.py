@@ -40,33 +40,32 @@ async def process_analysis(request: AnalyzeRequest):
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("test_id", request.test_id).execute()
         
-        # Run real council analysis using Hugging Face models
-        from app.graph.council_graph import run_council_analysis
-        final_state = await run_council_analysis(
+        # Run the actual council analysis
+        result = await run_council_analysis(
             test_id=request.test_id,
             merchant_id=request.merchant_id,
             diff_report=request.diff_report,
             legacy_response=request.legacy_response,
-            headless_response=request.headless_response,
+            headless_response=request.headless_response
         )
         
-        # Update database with final results
+        # Update database with results
         supabase.table("shadow_tests").update({
-            "status": final_state["status"],
-            "council_opinions": final_state["council_opinions"],
-            "active_provider": final_state["active_provider"],
-            "risk_score": final_state.get("risk_score"),
-            "final_verdict": final_state.get("final_verdict"),
-            "is_mitigated": final_state["is_mitigated"],
-            "mitigation_recommendation": final_state.get("mitigation_recommendation"),
-            "error_message": final_state.get("error_message"),
+            "status": result["status"],
+            "council_opinions": result.get("council_opinions", []),
+            "final_verdict": result.get("final_verdict"),
+            "risk_score": result.get("risk_score"),
+            "mitigation_recommendation": result.get("mitigation_recommendation"),
+            "active_provider": result.get("active_provider"),
+            "providers_attempted": result.get("providers_attempted", []),
+            "error_message": result.get("error_message"),
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("test_id", request.test_id).execute()
         
         logger.info(f"Analysis completed for test {request.test_id}")
         
     except Exception as e:
-        logger.error(f"Analysis failed for test {request.test_id}: {e}")
+        logger.error(f"Background analysis failed for {request.test_id}: {e}")
         
         # Update database with error
         supabase.table("shadow_tests").update({

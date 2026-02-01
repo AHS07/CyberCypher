@@ -1,6 +1,7 @@
 """Consensus Judge Agent - Makes final weighted decisions based on council input."""
 import logging
 from typing import Dict, Any, List
+from datetime import datetime
 from app.core.hf_manager import get_hf_manager
 
 logger = logging.getLogger(__name__)
@@ -110,11 +111,15 @@ What's your final verdict? Should we deploy this headless API version?"""
             
             return {
                 "agent": "consensus_judge",
+                "provider": "huggingface",
                 "model": model_name,
                 "timestamp": result["timestamp"],
-                "final_analysis": judgment_data.get("final_analysis", response_text),
+                "analysis": judgment_data.get("final_analysis", response_text),
+                "detected_issues": [],
+                "false_positives": [],
                 "verdict": verdict,
                 "final_risk_score": float(judgment_data.get("final_risk_score", 0.5)),
+                "risk_score": float(judgment_data.get("final_risk_score", 0.5)),
                 "confidence": float(judgment_data.get("confidence", 0.8)),
                 "recommendation": judgment_data.get("recommendation", "Proceed with caution"),
                 "key_factors": judgment_data.get("key_factors", []),
@@ -131,10 +136,11 @@ What's your final verdict? Should we deploy this headless API version?"""
         
         # Calculate weighted risk score
         primary_risk = primary_analysis.get("risk_score", 0.5)
-        risk_adjustment = skeptic_critique.get("risk_adjustment", 0.0)
+        skeptic_risk = skeptic_critique.get("risk_score", primary_risk)
         
-        # Weight: Primary 60%, Skeptic adjustment 40%
-        final_risk = max(0.0, min(1.0, primary_risk + (risk_adjustment * 0.4)))
+        # Weight: Primary 60%, Skeptic 40%
+        final_risk = (primary_risk * 0.6) + (skeptic_risk * 0.4)
+        final_risk = max(0.0, min(1.0, final_risk))
         
         # Determine verdict based on risk thresholds
         if final_risk < 0.3:
@@ -158,11 +164,15 @@ What's your final verdict? Should we deploy this headless API version?"""
         
         return {
             "agent": "consensus_judge",
+            "provider": "huggingface_fallback",
             "model": "fallback_weighted",
-            "timestamp": "fallback",
-            "final_analysis": f"Weighted analysis: Primary risk {primary_risk:.2f}, Skeptic adjustment {risk_adjustment:.2f}, Final risk {final_risk:.2f}. " + (raw_response[:200] if raw_response else ""),
+            "timestamp": datetime.utcnow().isoformat(),
+            "analysis": f"Weighted analysis: Primary risk {primary_risk:.2f}, Skeptic risk {skeptic_risk:.2f}, Final risk {final_risk:.2f}. " + (raw_response[:200] if raw_response else ""),
+            "detected_issues": [],
+            "false_positives": [],
             "verdict": verdict,
             "final_risk_score": final_risk,
+            "risk_score": final_risk,
             "confidence": 0.75,
             "recommendation": recommendation,
             "key_factors": key_factors,

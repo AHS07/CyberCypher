@@ -20,11 +20,11 @@ dist/
 # Environment variables
 # NOTE: Keeping .env files tracked for development reference
 # In production repos, uncomment these:
-# .env
-# .env.*
-# orchestrator/.env
-# engine/.env
-# dashboard/.env.local
+ .env
+ .env.*
+ orchestrator/.env
+ engine/.env
+ dashboard/.env.local
 !.env.example
 
 # IDE

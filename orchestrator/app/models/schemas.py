@@ -23,7 +23,7 @@ class Verdict(str, Enum):
 class CouncilOpinion(BaseModel):
     """Opinion from a single council member."""
     agent: str = Field(..., description="Agent name (primary_analyzer, skeptic_critic, consensus_judge)")
-    provider: str = Field(..., description="LLM provider used (claude, gemini, ollama)")
+    provider: str = Field(..., description="LLM provider used (huggingface)")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     analysis: str = Field(..., description="Detailed analysis text")
     detected_issues: list[str] = Field(default_factory=list)

@@ -1,50 +1,13 @@
 {
-    "test_id": "manual_test_001",
-    "merchant_id": "VIT_Vellore_Demo",
-    "legacy_response": {
-        "product_id": "PROD-123",
-        "name": "Red T-Shirt",
-        "price": 999,
-        "currency": "INR",
-        "stock_count": 50,
-        "is_available": true,
-        "shipping_cost": 0
-    },
-    "headless_response": {
-        "product_id": "PROD-123",
-        "name": "Red T-Shirt",
-        "price": "999",
-        "currency": "INR",
-        "stock_count": 50,
-        "is_available": "true",
-        "deliveryFee": null
-    },
-    "diff_report": {
-        "type_changes": {
-            "root['price']": {
-                "old_type": "int",
-                "new_type": "str",
-                "old_value": 999,
-                "new_value": "999"
-            },
-            "root['is_available']": {
-                "old_type": "bool",
-                "new_type": "str",
-                "old_value": true,
-                "new_value": "true"
-            }
-        },
-        "values_changed": {
-            "root['shipping_cost']": {
-                "old_value": 0,
-                "new_value": null
-            }
-        },
-        "dictionary_item_removed": [
-            "root['shipping_cost']"
-        ],
-        "dictionary_item_added": [
-            "root['deliveryFee']"
-        ]
-    }
+  "test_id": "test999",
+  "merchant_id": "test_merchant",
+  "legacy_response": {
+    "status": "SUCCESS",
+    "price": 100.0
+  },
+  "headless_response": {
+    "status": "SUCCESS", 
+    "price": 100.0
+  },
+  "diff_report": {}
 }

@@ -1,6 +1,7 @@
 """Skeptic Critic Agent - Challenges findings and identifies false positives."""
 import logging
 from typing import Dict, Any, List
+from datetime import datetime
 from app.core.hf_manager import get_hf_manager
 
 logger = logging.getLogger(__name__)
@@ -96,12 +97,14 @@ Are any of these "issues" actually false positives? What's your skeptical take?"
             
             return {
                 "agent": "skeptic_critic",
+                "provider": "huggingface",
                 "model": model_name,
                 "timestamp": result["timestamp"],
-                "critique": critique_data.get("critique", response_text),
+                "analysis": critique_data.get("critique", response_text),
+                "detected_issues": critique_data.get("genuine_concerns", []),
                 "false_positives": critique_data.get("false_positives", []),
                 "genuine_concerns": critique_data.get("genuine_concerns", []),
-                "risk_adjustment": float(critique_data.get("risk_adjustment", 0.0)),
+                "risk_score": max(0.0, min(1.0, 0.5 + float(critique_data.get("risk_adjustment", 0.0)))),
                 "confidence": float(critique_data.get("confidence", 0.75)),
                 "recommendation": critique_data.get("recommendation", "Proceed with caution"),
                 "raw_response": response_text
@@ -155,12 +158,14 @@ Are any of these "issues" actually false positives? What's your skeptical take?"
         
         return {
             "agent": "skeptic_critic",
+            "provider": "huggingface_fallback",
             "model": "fallback_rules",
-            "timestamp": "fallback",
-            "critique": f"Fallback critique identified {len(false_positives)} false positives and {len(genuine_concerns)} genuine concerns. " + (raw_response[:200] if raw_response else ""),
+            "timestamp": datetime.utcnow().isoformat(),
+            "analysis": f"Fallback critique identified {len(false_positives)} false positives and {len(genuine_concerns)} genuine concerns. " + (raw_response[:200] if raw_response else ""),
+            "detected_issues": genuine_concerns,
             "false_positives": false_positives,
             "genuine_concerns": genuine_concerns,
-            "risk_adjustment": risk_adjustment,
+            "risk_score": max(0.0, min(1.0, primary_analysis.get("risk_score", 0.5) + risk_adjustment)),
             "confidence": 0.7,
             "recommendation": "Manual review recommended due to mixed findings",
             "raw_response": raw_response

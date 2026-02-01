@@ -1,6 +1,7 @@
 """Primary Analyzer Agent - Technical analysis of API differences."""
 import logging
 from typing import Dict, Any
+from datetime import datetime
 from app.core.hf_manager import get_hf_manager
 
 logger = logging.getLogger(__name__)
@@ -91,10 +92,12 @@ What technical issues do you see? What's the risk to the e-commerce platform?"""
             
             return {
                 "agent": "primary_analyzer",
+                "provider": "huggingface",
                 "model": model_name,
                 "timestamp": result["timestamp"],
                 "analysis": analysis_data.get("analysis", response_text),
                 "detected_issues": analysis_data.get("detected_issues", []),
+                "false_positives": [],
                 "risk_score": float(analysis_data.get("risk_score", 0.5)),
                 "confidence": float(analysis_data.get("confidence", 0.8)),
                 "business_impact": analysis_data.get("business_impact", "Unknown impact"),
@@ -124,10 +127,12 @@ What technical issues do you see? What's the risk to the e-commerce platform?"""
         
         return {
             "agent": "primary_analyzer",
+            "provider": "huggingface_fallback",
             "model": "fallback_rules",
-            "timestamp": "fallback",
+            "timestamp": datetime.utcnow().isoformat(),
             "analysis": f"Fallback analysis detected {len(issues)} issues. " + (raw_response[:200] if raw_response else ""),
             "detected_issues": issues,
+            "false_positives": [],
             "risk_score": min(risk_score, 1.0),
             "confidence": 0.6,
             "business_impact": "Potential frontend breakage and user experience issues",

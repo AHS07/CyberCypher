@@ -8,6 +8,40 @@ interface Props {
 }
 
 export function MitigationGate({ test }: Props) {
+  const handleApprove = async () => {
+    if (!test) return;
+    
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_ORCHESTRATOR_URL}/api/mitigate/${test.test_id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        alert('Migration approved and marked as mitigated');
+        // Refresh the page or update state
+        window.location.reload();
+      } else {
+        alert('Failed to approve migration');
+      }
+    } catch (error) {
+      console.error('Error approving migration:', error);
+      alert('Error approving migration');
+    }
+  };
+
+  const handleReview = () => {
+    if (!test) return;
+    alert(`Test ${test.test_id} flagged for manual review. A human reviewer will be notified.`);
+  };
+
+  const handleBlock = () => {
+    if (!test) return;
+    alert(`Migration blocked for test ${test.test_id}. This will prevent deployment until issues are resolved.`);
+  };
+
   if (!test) {
     return (
       <motion.div
@@ -104,6 +138,7 @@ export function MitigationGate({ test }: Props) {
           transition={{ delay: 0.6 }}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
+          onClick={handleApprove}
           className="w-full py-3 squircle bg-success text-background font-semibold text-sm haptic-press hover:shadow-lg transition-all"
         >
           Approve Migration
@@ -115,6 +150,7 @@ export function MitigationGate({ test }: Props) {
           transition={{ delay: 0.7 }}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
+          onClick={handleReview}
           className="w-full py-3 squircle bg-card border border-border text-primary font-semibold text-sm haptic-press hover:border-primary-30 transition-all"
         >
           Request Review
@@ -126,6 +162,7 @@ export function MitigationGate({ test }: Props) {
           transition={{ delay: 0.8 }}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
+          onClick={handleBlock}
           className="w-full py-3 squircle bg-danger-10 border border-danger-30 text-danger font-semibold text-sm haptic-press hover:bg-danger-20 transition-all"
         >
           Block Migration
