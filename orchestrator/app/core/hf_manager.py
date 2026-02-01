@@ -111,13 +111,6 @@ def get_hf_manager() -> HuggingFaceManager:
     """Get the global HF manager instance."""
     global hf_manager
     if hf_manager is None:
-<<<<<<< HEAD
         from app.core.config import settings
         hf_manager = HuggingFaceManager(settings.hf_token)
-=======
-        # Use the token provided - set as environment variable for OpenAI client
-        import os
-        os.environ["HF_TOKEN"] = "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"
-        hf_manager = HuggingFaceManager("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")
->>>>>>> parent of 9c6c4e7 (gitignore)
     return hf_manager
