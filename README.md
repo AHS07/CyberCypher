@@ -1,282 +1,351 @@
-# Shadow Twin Guardian
+# Shadow-SHERPA Hybrid System
 
-A sophisticated multi-agent orchestration system leveraging **LangGraph** to manage a council of AI agents for e-commerce migration parity testing. The system uses multiple LLM providers with intelligent failover, real-time visualization, and human-in-the-loop capabilities.
+A sophisticated multi-agent AI system for e-commerce migration parity testing. The system uses a council of specialized AI agents powered by HuggingFace models to analyze API differences and provide intelligent deployment recommendations with human oversight capabilities.
 
 ## 🏗️ Architecture
 
-```mermaid
-graph TB
-    subgraph Frontend["Dashboard (Next.js 14)"]
-        UI[Control Tower UI]
-        Feed[Real-Time Feed]
-        Viz[Parity Visualizer]
-        Trace[Agent Trace]
-        Gate[Mitigation Gate]
-    end
-    
-    subgraph Backend["Orchestrator (FastAPI + Lang Graph)"]
-        API[FastAPI Routes]
-        Graph[LangGraph Council]
-        Primary[Primary Analyzer<br/>Claude]
-        Skeptic[Skeptic Critic<br/>Llama]
-        Judge[Consensus Judge<br/>Gemini]
-    end
-    
-    subgraph Data["Supabase"]
-        Tests[(shadow_tests)]
-        Logs[(reliability_logs)]
-        Checks[(checkpoints)]
-    end
-    
-    UI --> API
-    Feed -.realtime.-> Tests
-    API --> Graph
-    Graph --> Primary --> Skeptic --> Judge
-    Graph -.checkpoints.-> Checks
-    Primary -.failover.-> Logs
-    Judge --> Tests
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Shadow Engine │───▶│   Orchestrator   │───▶│   Dashboard     │
+│   (Port 8001/2)│    │   (Port 8005)    │    │   (Port 3000)   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+         │                       │                       │
+         │              ┌────────▼────────┐             │
+         │              │ Multi-Agent     │             │
+         │              │ Council:        │             │
+         │              │ • Primary       │             │
+         │              │ • Skeptic       │             │
+         │              │ • Judge         │             │
+         │              └─────────────────┘             │
+         │                       │                       │
+         └───────────────────────▼───────────────────────┘
+                        Supabase Database
+                     (Real-time Updates)
 ```
 
 ## 📁 Project Structure
 
 ```
 CyberCypher/
-├── orchestrator/          # Python FastAPI + LangGraph backend
+├── engine/                   # Shadow replay testing engine
+│   ├── shadow_engine.py     # Main shadow testing logic
+│   ├── server_legacy.py     # Legacy API simulator (port 8001)
+│   ├── server_headless.py   # Headless API simulator (port 8002)
+│   ├── config.py           # Configuration and bug simulation
+│   └── utils.py            # Utility functions
+├── orchestrator/            # Multi-agent orchestration system
 │   ├── app/
-│   │   ├── agents/       # Multi-agent council (Primary, Skeptic, Judge)
-│   │   ├── api/          # FastAPI routes
-│   │   ├── core/         # Config & LLM manager with failover
-│   │   ├── db/           # Supabase checkpointer
-│   │   ├── graph/        # LangGraph state graph
-│   │   └── models/       # Pydantic schemas & ShadowState
+│   │   ├── agents/         # AI agent implementations
+│   │   │   ├── primary_analyzer.py    # Technical analysis agent
+│   │   │   ├── skeptic_critic.py      # False positive detection
+│   │   │   └── consensus_judge.py     # Final decision making
+│   │   ├── api/            # FastAPI routes
+│   │   ├── core/           # Core services
+│   │   │   ├── config.py   # Configuration management
+│   │   │   ├── hf_manager.py # HuggingFace API manager
+│   │   │   └── llm_manager.py # LLM provider management
+│   │   ├── graph/          # Multi-agent workflow
+│   │   └── models/         # Pydantic schemas
 │   └── requirements.txt
-├── dashboard/            # Next.js 14 React dashboard
-│   ├── app/              # App Router pages
-│   ├── components/       # React components
-│   └── lib/              # Supabase client & types
-├── shared/               # Shared resources
-│   ├── migrations/       # Supabase SQL migrations
-│   └── types/            # TypeScript & Python type definitions
-├── .env.example          # Environment variables template
-└── package.json          # Monorepo scripts
+├── dashboard/              # Next.js real-time dashboard
+│   ├── app/               # App Router pages
+│   ├── components/        # React components
+│   │   ├── agent-trace.tsx        # Agent workflow visualization
+│   │   ├── mitigation-gate.tsx    # Human oversight controls
+│   │   ├── parity-visualizer.tsx  # API diff comparison
+│   │   ├── real-time-feed.tsx     # Live test monitoring
+│   │   └── reliability-badge.tsx  # System health status
+│   └── lib/               # Supabase client & utilities
+├── shared/                # Shared resources
+│   ├── migrations/        # Database schema
+│   └── types/            # Type definitions
+└── README.md
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-1. **Supabase Project**: Create a project at [supabase.com](https://supabase.com)
-2. **API Keys**: Obtain keys for:
-   - Anthropic (Claude)
-   - Google (Gemini)
-   - Optional: OpenAI
-3. **Ollama** (optional): Install [Ollama](https://ollama.ai) and pull `llama3.2` for local failover
+- **Python 3.11+** with pip
+- **Node.js 18+** with npm
+- **Supabase Project**: Create at [supabase.com](https://supabase.com)
+- **HuggingFace Token**: Get from [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
 
 ### Setup
 
 1. **Clone and Install Dependencies**
-
-```bash
-# Install root dependencies (concurrently for dev)
-npm install
-
-# Install orchestrator dependencies
-cd orchestrator
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cd ..
-
-# Install dashboard dependencies
-cd dashboard
-npm install
-cd ..
-```
+   ```bash
+   # Install dashboard dependencies
+   cd dashboard
+   npm install
+   cd ..
+   
+   # Setup Python environment
+   cd engine
+   python -m venv venv
+   venv\Scripts\activate  # On Windows
+   # source venv/bin/activate  # On Linux/Mac
+   pip install -r ../orchestrator/requirements.txt
+   cd ..
+   ```
 
 2. **Configure Environment**
+   ```bash
+   # Copy example environment files
+   cp .env.example .env
+   
+   # Edit configuration files with your actual values:
+   # - orchestrator/.env: Supabase URL, keys, HF token
+   # - dashboard/.env.local: API URLs, Supabase config
+   # - engine/.env: Supabase credentials
+   ```
 
-```bash
-# Copy example environment file
-cp .env.example .env
+3. **Setup Database**
+   
+   In your Supabase dashboard, run the SQL migrations:
+   ```sql
+   -- Run these in order:
+   -- shared/migrations/001_create_shadow_tests.sql
+   -- shared/migrations/002_create_reliability_logs.sql  
+   -- shared/migrations/003_create_checkpoints.sql
+   ```
 
-# Edit .env and fill in your actual values:
-# - SUPABASE_URL and keys
-# - ANTHROPIC_API_KEY
-# - GOOGLE_API_KEY
-# - OLLAMA_BASE_URL (default: http://localhost:11434)
-```
+4. **Start All Services**
+   ```bash
+   # Terminal 1: Start Legacy API (port 8001)
+   cd engine
+   venv\Scripts\activate
+   python server_legacy.py
+   
+   # Terminal 2: Start Headless API (port 8002)  
+   cd engine
+   venv\Scripts\activate
+   python server_headless.py
+   
+   # Terminal 3: Start Orchestrator (port 8005)
+   cd orchestrator
+   ..\engine\venv\Scripts\activate
+   set PYTHONPATH=D:\git\CyberCypher\orchestrator
+   python -m uvicorn app.main:app --host localhost --port 8005
+   
+   # Terminal 4: Start Dashboard (port 3000)
+   cd dashboard
+   npm run dev
+   ```
 
-3. **Run Supabase Migrations**
-
-```bash
-# In your Supabase dashboard, run the SQL from:
-# - shared/migrations/001_create_shadow_tests.sql
-# - shared/migrations/002_create_reliability_logs.sql
-# - shared/migrations/003_create_checkpoints.sql
-
-# Or use Supabase CLI:
-supabase db push
-```
-
-4. **Start Development Servers**
-
-```bash
-# Start both orchestrator and dashboard concurrently
-npm run dev
-
-# Or start independently:
-npm run dev:orchestrator  # FastAPI on :8000
-npm run dev:dashboard     # Next.js on :3000
-```
-
-5. **Access the Dashboard**
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+5. **Access the System**
+   - **Dashboard**: http://localhost:3000
+   - **API Docs**: http://localhost:8005/docs
+   - **Health Check**: http://localhost:8005/api/health/providers
 
 ## 🎯 Core Features
 
-### 1. Multi-Agent Council
+### 1. Multi-Agent Council (HuggingFace Powered)
 
-Three specialized AI agents deliberate on parity test results:
+Three specialized AI agents analyze API differences:
 
-- **Primary Analyzer** (Claude-3.5-Sonnet): Deep-dive JSON diff analysis
-- **Skeptic Critic** (Llama-3.2): Identifies false positives and semantic matches
-- **Consensus Judge** (Gemini-1.5-Pro): Weighted vote fusion and final verdict
+- **Primary Analyzer** (`Qwen/Qwen2.5-7B-Instruct`)
+  - Technical analysis of API differences
+  - Detects type mismatches, missing fields, performance issues
+  - Assigns initial risk scores
 
-### 2. Intelligent Failover
+- **Skeptic Critic** (`microsoft/Phi-3-medium-4k-instruct`)
+  - Challenges findings and identifies false positives
+  - Semantic equivalence detection (e.g., 100.0 ≈ "100")
+  - Risk adjustment recommendations
 
-- Automatic provider switching on failures (429, 500, timeout)
-- Health tracking with consecutive failure limits
-- Exponential backoff retry logic
-- Reliability logging to database
-- Fallback to local Ollama when cloud APIs fail
+- **Consensus Judge** (`mistralai/Mistral-7B-Instruct-v0.3`)
+  - Weighted decision making based on council input
+  - Final verdict: PASS / NEEDS_REVIEW / FAIL
+  - Deployment recommendations
 
-### 3. State Persistence
+### 2. Shadow Replay Testing
 
-- LangGraph checkpointing via Supabase
-- Full state saved at each super-step
-- Replay and debugging capabilities
+- **Dual API Testing**: Compares legacy vs headless API responses
+- **Difference Detection**: Uses DeepDiff for comprehensive analysis
+- **Bug Simulation**: Configurable issues for testing (type changes, missing fields)
+- **Performance Monitoring**: Latency comparison and regression detection
 
-### 4. Enterprise Dashboard
+### 3. Real-time Dashboard
 
-- **Real-Time Feed**: Live test updates via Supabase postgres_changes
-- **Parity Visualizer**: Side-by-side JSON diff comparison
-- **Agent Trace**: React Flow visualization with live node pulsing
-- **Reliability Badge**: Current provider health status
-- **Mitigation Gate**: Human-in-the-loop for high-risk verdicts
+- **Live Test Feed**: Real-time monitoring via Supabase subscriptions
+- **Risk Assessment**: Visual risk scoring and verdict display
+- **API Comparison**: Side-by-side JSON diff visualization
+- **Agent Trace**: Multi-agent workflow visualization
+- **Mitigation Controls**: Human-in-the-loop approval/rejection
 
-### 5. Edge Case Handling
+### 4. Human Oversight
 
-- **Empty Diffs**: Skip council and mark as PASS
-- **Rate Limits**: Exponential backoff and failover
-- **Orphaned Tests**: Stale signal warning after 5 minutes
-- **All Providers Down**: Graceful degradation with error logging
+- **Mitigation Gate**: Manual override capabilities
+- **Risk Thresholds**: Configurable risk-based routing
+- **Audit Trail**: Complete decision history in database
+- **Real-time Notifications**: Instant alerts for high-risk scenarios
+
+## 🧪 Usage Examples
+
+### Basic Shadow Test
+```bash
+cd engine
+venv\Scripts\activate
+python shadow_engine.py --payload '{"item": "laptop", "price": 1000}'
+```
+
+### High-Risk Scenario (Multiple Issues)
+```bash
+# Enable bugs in engine/config.py:
+# BUGS_ENABLED = {"type_change": True, "missing_key": True}
+
+python shadow_engine.py --payload '{"item": "enterprise_server", "price": 50000}'
+```
+
+**Expected Council Analysis:**
+- **Primary**: Risk 0.9 - "Type mismatch + missing tax field"
+- **Skeptic**: Risk 0.7 - "Type change is false positive, but missing field is serious"  
+- **Judge**: Risk 0.82 - "FAIL - Do not deploy"
+
+### API Status Check
+```bash
+curl http://localhost:8005/api/status/{test_id}
+```
+
+### Manual Mitigation
+```bash
+curl -X POST http://localhost:8005/api/mitigate/{test_id}
+```
 
 ## 📡 API Reference
 
-### POST /api/analyze
+### Core Endpoints
 
-Trigger a new parity test evaluation.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/analyze` | Trigger parity test analysis |
+| `GET` | `/api/status/{test_id}` | Get test status and results |
+| `GET` | `/api/health/providers` | Check AI provider health |
+| `POST` | `/api/mitigate/{test_id}` | Mark test as mitigated |
+| `WebSocket` | `/ws/tests/{test_id}` | Real-time test updates |
 
-**Request:**
+### Request/Response Examples
+
+**Analyze Request:**
 ```json
 {
   "test_id": "test-123",
-  "merchant_id": "merch-456",
-  "legacy_response": { ... },
-  "headless_response": { ... },
-  "diff_report": { ... }
+  "merchant_id": "merchant-456", 
+  "legacy_response": {"status": "SUCCESS", "price": 100.0, "tax_total": 10.0},
+  "headless_response": {"status": "SUCCESS", "price": "100"},
+  "diff_report": {"type_changes": {...}, "dictionary_item_removed": [...]}
 }
 ```
 
-**Response:**
-```json
-{
-  "test_id": "test-123",
-  "status": "pending",
-  "message": "Analysis started successfully"
-}
-```
-
-### GET /api/status/{test_id}
-
-Get current test status.
-
-**Response:**
+**Status Response:**
 ```json
 {
   "test_id": "test-123",
   "status": "complete",
-  "final_verdict": "PASS",
-  "risk_score": 0.15,
-  "council_opinions": [...],
-  ...
+  "final_verdict": "FAIL",
+  "risk_score": 0.82,
+  "council_opinions": [
+    {
+      "agent": "primary_analyzer",
+      "provider": "huggingface",
+      "risk_score": 0.9,
+      "detected_issues": ["Type mismatch", "Missing tax field"],
+      "confidence": 0.85
+    }
+  ],
+  "mitigation_recommendation": "Do not deploy - high risk detected"
 }
-```
-
-### WebSocket /ws/tests/{test_id}
-
-Real-time test updates.
-
-### GET /api/health/providers
-
-Get LLM provider health status.
-
-### POST /api/mitigate/{test_id}
-
-Mark a test as mitigated (human review complete).
-
-## 🧪 Testing
-
-```bash
-# Run orchestrator tests
-cd orchestrator
-pytest tests/ -v
-
-# Test failover logic
-pytest tests/test_llm_manager.py -v
-
-# Test council graph
-pytest tests/test_council_graph.py -v
 ```
 
 ## 🔧 Configuration
 
-Key environment variables:
+### Key Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SUPABASE_URL` | Supabase project URL | Required |
-| `SUPABASE_ANON_KEY` | Supabase anon key | Required |
-| `ANTHROPIC_API_KEY` | Claude API key | Required |
-| `GOOGLE_API_KEY` | Gemini API key | Required |
-| `OLLAMA_BASE_URL` | Local Ollama endpoint | `http://localhost:11434` |
-| `MAX_RETRIES` | Max retry attempts | `3` |
-| `RETRY_DELAY_SECONDS` | Initial retry delay | `2` |
+| `SUPABASE_SERVICE_KEY` | Supabase service key | Required |
+| `HF_TOKEN` | HuggingFace API token | Required |
+| `ORCHESTRATOR_PORT` | Orchestrator port | 8005 |
+| `MAX_RETRIES` | Max retry attempts | 3 |
+
+### Bug Simulation (engine/config.py)
+```python
+BUGS_ENABLED = {
+    "type_change": False,    # float -> string conversion
+    "missing_key": False,    # Remove tax_total field  
+    "case_mismatch": False,  # SUCCESS -> success
+    "performance_delay": False,  # Add 2s delay
+    "flaky": False          # Random 20% failures
+}
+```
 
 ## 🐛 Troubleshooting
 
-**Dashboard shows "Stale Signal"**
-- Check if orchestrator is running (`http://localhost:8000/health`)
+### Common Issues
+
+**Dashboard shows no data:**
+- Check orchestrator is running: `curl http://localhost:8005/health`
 - Verify Supabase realtime is enabled for `shadow_tests` table
+- Check browser console for connection errors
 
-**"All Providers Down"**
-- Verify API keys in `.env`
-- Check provider status on their dashboards
-- Ensure Ollama is running locally: `ollama serve`
+**Council analysis fails:**
+- Verify HuggingFace token is valid
+- Check provider health: `curl http://localhost:8005/api/health/providers`
+- Review orchestrator logs for API errors
 
-**Empty Agent Trace**
-- Select a test from the Real-Time Feed
-- Check browser console for errors
-- Verify test has council opinions
+**Shadow tests fail:**
+- Ensure legacy (8001) and headless (8002) APIs are running
+- Check engine configuration in `config.py`
+- Verify network connectivity between services
 
-## 📝 License
+## 📊 System Monitoring
 
-MIT
+### Health Endpoints
+- **Orchestrator**: http://localhost:8005/health
+- **Providers**: http://localhost:8005/api/health/providers
+- **Legacy API**: http://localhost:8001/health (if implemented)
+- **Headless API**: http://localhost:8002/health (if implemented)
+
+### Performance Metrics
+- **Analysis Latency**: Tracked per test in database
+- **Provider Response Times**: Monitored and logged
+- **Failure Rates**: Consecutive failure tracking with auto-recovery
+
+## 🎯 Demo Scenarios
+
+### Scenario 1: Safe Migration (PASS)
+```bash
+# No bugs enabled - identical responses
+python shadow_engine.py --payload '{"item": "laptop", "price": 1000}'
+# Expected: Risk ~0.0, Verdict: PASS
+```
+
+### Scenario 2: Minor Issue (NEEDS_REVIEW)  
+```bash
+# Only type_change enabled
+python shadow_engine.py --payload '{"item": "tablet", "price": 500}'
+# Expected: Risk ~0.3, Verdict: NEEDS_REVIEW
+```
+
+### Scenario 3: Critical Issue (FAIL)
+```bash
+# Both type_change and missing_key enabled  
+python shadow_engine.py --payload '{"item": "server", "price": 10000}'
+# Expected: Risk ~0.8, Verdict: FAIL
+```
 
 ## 👥 Team
 
-Built for the CyberCypher team:
-- **Keshav**: Orchestrator & UI
-- **Aayush**: API Layer & Ollama
-- **Aakash**: ML & DB Logic
+**Built by:**
+- **Aayush**: System Architecture, Multi-Agent Council, API Integration
+- **Keshav**: Frontend Dashboard, Real-time Visualization, UX Design
+
+## 📝 License
+
+MIT License - see LICENSE file for details.
+
+---
+
+**Shadow-SHERPA Hybrid System** - Intelligent AI-powered migration safety net for enterprise e-commerce platforms. 🛡️✨
